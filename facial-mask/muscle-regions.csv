@@ -1,0 +1,45 @@
+id,anatomical_name,region,laterality,actuator_count,primary_motion,notes
+frontalis_medial,frontal belly of occipitofrontalis,forehead,bilateral,2,raise medial brow,computational medial partition
+frontalis_lateral,frontal belly of occipitofrontalis,forehead,bilateral,2,raise lateral brow,computational lateral partition
+corrugator_supercilii,corrugator supercilii,brow,bilateral,2,draw brow medially and inferiorly,
+depressor_supercilii,depressor supercilii,brow,bilateral,2,depress medial brow,
+procerus,procerus,glabella/midline,midline,1,lower medial brow and wrinkle nasal root,
+orbicularis_oculi_palpebral_upper,orbicularis oculi,upper eyelid,bilateral,2,gentle upper-lid closure,computational partition
+orbicularis_oculi_palpebral_lower,orbicularis oculi,lower eyelid,bilateral,2,gentle lower-lid closure,computational partition
+orbicularis_oculi_orbital_superior,orbicularis oculi,superior orbit,bilateral,2,strong closure and brow/cheek compression,computational partition
+orbicularis_oculi_orbital_inferior,orbicularis oculi,inferior orbit,bilateral,2,strong closure and cheek raise,computational partition
+levator_palpebrae_superioris,levator palpebrae superioris,upper eyelid,bilateral,2,raise upper eyelid,oculomotor not facial nerve but visually necessary
+nasalis_transverse,nasalis transverse part,nose,bilateral,2,compress nasal aperture,
+nasalis_alar,nasalis alar part,nose,bilateral,2,dilate/flair nostril,
+depressor_septi_nasi,depressor septi nasi,nasal septum,midline,1,draw nasal septum/tip inferiorly,
+levator_labii_superioris_alaeque_nasi,levator labii superioris alaeque nasi,nose/upper lip,bilateral,2,raise upper lip and nasal ala,
+levator_labii_superioris,levator labii superioris,upper lip,bilateral,2,raise upper lip,
+zygomaticus_minor,zygomaticus minor,upper lip/cheek,bilateral,2,raise upper lip,
+zygomaticus_major,zygomaticus major,mouth corner/cheek,bilateral,2,raise and draw mouth corner laterally,
+levator_anguli_oris,levator anguli oris,mouth corner,bilateral,2,raise mouth corner,
+risorius,risorius,mouth corner,bilateral,2,draw mouth corner laterally,
+buccinator,buccinator,cheek,bilateral,2,compress cheek against teeth,
+orbicularis_oris_upper_medial,orbicularis oris,upper lip medial,bilateral,2,close/protrude upper lip,computational partition
+orbicularis_oris_upper_lateral,orbicularis oris,upper lip lateral,bilateral,2,close/protrude upper lip,computational partition
+orbicularis_oris_lower_medial,orbicularis oris,lower lip medial,bilateral,2,close/protrude lower lip,computational partition
+orbicularis_oris_lower_lateral,orbicularis oris,lower lip lateral,bilateral,2,close/protrude lower lip,computational partition
+incisivus_labii_superioris,incisivus labii superioris,upper lip,bilateral,2,shape/protrude upper lip,
+incisivus_labii_inferioris,incisivus labii inferioris,lower lip,bilateral,2,shape/protrude lower lip,
+depressor_anguli_oris,depressor anguli oris,mouth corner,bilateral,2,depress mouth corner,
+depressor_labii_inferioris,depressor labii inferioris,lower lip,bilateral,2,depress lower lip,
+mentalis,mentalis,chin/lower lip,bilateral,2,raise/protrude lower lip and wrinkle chin,
+platysma_mandibular,platysma,jaw/neck,bilateral,2,tense neck and depress mandibular soft tissue,computational partition
+platysma_lower_lip,platysma,lower lip/neck,bilateral,2,depress lower lip/mouth corner,computational partition
+masseter_superficial,masseter,mastication,bilateral,2,elevate mandible,computational partition
+masseter_deep,masseter,mastication,bilateral,2,elevate/stabilize mandible,computational partition
+temporalis_anterior,temporalis,mastication,bilateral,2,elevate mandible,computational partition
+temporalis_middle,temporalis,mastication,bilateral,2,elevate/retract mandible,computational partition
+temporalis_posterior,temporalis,mastication,bilateral,2,retract mandible,computational partition
+medial_pterygoid,medial pterygoid,mastication,bilateral,2,elevate/protrude mandible and assist excursion,
+lateral_pterygoid_superior,lateral pterygoid,mastication,bilateral,2,stabilize/protract mandibular complex,computational partition
+lateral_pterygoid_inferior,lateral pterygoid,mastication,bilateral,2,protract/depress and drive excursion,computational partition
+digastric_anterior,anterior belly of digastric,suprahyoid,bilateral,2,depress mandible when hyoid fixed,
+mylohyoid,mylohyoid,suprahyoid,bilateral,2,assist mandibular depression / floor-of-mouth motion,
+auricularis_anterior,auricularis anterior,ear,bilateral,2,draw auricle anteriorly,
+auricularis_superior,auricularis superior,ear,bilateral,2,raise auricle,
+auricularis_posterior,auricularis posterior,ear,bilateral,2,draw auricle posteriorly,
