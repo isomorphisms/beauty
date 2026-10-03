@@ -1,0 +1,37 @@
+ordinal,id,min,max,meaning,main_anatomical_drivers
+1,brow_outer_raise_L,0,1,raise left lateral brow,frontalis_lateral_L
+2,brow_outer_raise_R,0,1,raise right lateral brow,frontalis_lateral_R
+3,brow_inner_raise_L,0,1,raise left medial brow,frontalis_medial_L
+4,brow_inner_raise_R,0,1,raise right medial brow,frontalis_medial_R
+5,brow_lower_L,0,1,lower/draw together left brow,corrugator_supercilii_L;depressor_supercilii_L;procerus
+6,brow_lower_R,0,1,lower/draw together right brow,corrugator_supercilii_R;depressor_supercilii_R;procerus
+7,upper_lid_raise_L,0,1,raise left upper eyelid,levator_palpebrae_superioris_L
+8,upper_lid_raise_R,0,1,raise right upper eyelid,levator_palpebrae_superioris_R
+9,eye_close_L,0,1,close left eye,orbicularis_oculi_palpebral_upper_L;orbicularis_oculi_palpebral_lower_L
+10,eye_close_R,0,1,close right eye,orbicularis_oculi_palpebral_upper_R;orbicularis_oculi_palpebral_lower_R
+11,cheek_raise_L,0,1,raise/compress left cheek,orbicularis_oculi_orbital_inferior_L;zygomaticus_major_L
+12,cheek_raise_R,0,1,raise/compress right cheek,orbicularis_oculi_orbital_inferior_R;zygomaticus_major_R
+13,nose_wrinkle_L,0,1,wrinkle/compress left nose,nasalis_transverse_L;levator_labii_superioris_alaeque_nasi_L
+14,nose_wrinkle_R,0,1,wrinkle/compress right nose,nasalis_transverse_R;levator_labii_superioris_alaeque_nasi_R
+15,nostril_dilate_L,0,1,dilate left nostril,nasalis_alar_L
+16,nostril_dilate_R,0,1,dilate right nostril,nasalis_alar_R
+17,upper_lip_raise_L,0,1,raise left upper lip,levator_labii_superioris_L;levator_labii_superioris_alaeque_nasi_L;zygomaticus_minor_L
+18,upper_lip_raise_R,0,1,raise right upper lip,levator_labii_superioris_R;levator_labii_superioris_alaeque_nasi_R;zygomaticus_minor_R
+19,lip_corner_raise_L,0,1,raise left mouth corner,zygomaticus_major_L;levator_anguli_oris_L
+20,lip_corner_raise_R,0,1,raise right mouth corner,zygomaticus_major_R;levator_anguli_oris_R
+21,lip_corner_pull_L,0,1,pull left mouth corner laterally,risorius_L;zygomaticus_major_L
+22,lip_corner_pull_R,0,1,pull right mouth corner laterally,risorius_R;zygomaticus_major_R
+23,lip_corner_depress_L,0,1,depress left mouth corner,depressor_anguli_oris_L;platysma_lower_lip_L
+24,lip_corner_depress_R,0,1,depress right mouth corner,depressor_anguli_oris_R;platysma_lower_lip_R
+25,lower_lip_depress_L,0,1,depress left lower lip,depressor_labii_inferioris_L;platysma_lower_lip_L
+26,lower_lip_depress_R,0,1,depress right lower lip,depressor_labii_inferioris_R;platysma_lower_lip_R
+27,chin_raise_L,0,1,raise/protrude left lower lip and chin,mentalis_L
+28,chin_raise_R,0,1,raise/protrude right lower lip and chin,mentalis_R
+29,lip_pucker,0,1,purse/protrude lips,orbicularis_oris_*;incisivus_labii_superioris_*;incisivus_labii_inferioris_*
+30,lip_funnel,0,1,funnel lips forward,orbicularis_oris_*;buccinator_*
+31,lip_press,0,1,press lips together,orbicularis_oris_*;incisivus_labii_superioris_*;incisivus_labii_inferioris_*
+32,jaw_open,0,1,open/depress mandible,lateral_pterygoid_inferior_*;digastric_anterior_*;mylohyoid_*
+33,jaw_left,0,1,move mandible toward subject left,contralateral_pterygoid_dominant;mechanical_jaw_solver
+34,jaw_right,0,1,move mandible toward subject right,contralateral_pterygoid_dominant;mechanical_jaw_solver
+35,jaw_protrude,0,1,protrude mandible,lateral_pterygoid_*;medial_pterygoid_*;masseter_superficial_*
+36,neck_tense,0,1,tense visible anterior neck/mandibular sheet,platysma_mandibular_*;platysma_lower_lip_*
