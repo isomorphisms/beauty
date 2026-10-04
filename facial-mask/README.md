@@ -2,6 +2,21 @@
 
 A numerical face model for expression work.
 
+## Executable F1 result
+
+The [canonical musculature ledger](../anatomy/README.md) now accounts for 105
+audited muscle/subdivision entries and implements 102 independent actuators.
+The 44-region CSV below remains the historical 86-input compatibility view;
+it is not the anatomical authority. All its inputs and the original 36 control
+ordinals are preserved. New anatomy and disposition changes belong in the TSV.
+
+The [moving-face demo](../demo/README.md) implements the control → activation →
+skeleton/tissue → rendered surface path. It includes a separate rigid mandible,
+hyoid support, shared modiolus junctions, finite contraction fields, circumferential
+oral/ocular fields, and volume-aware masseter/temporalis belly deformation.
+The original design notes below describe the subject-specific target; the
+current demonstration uses an explicitly approximate procedural neutral mask.
+
 The model is deliberately split into four layers:
 
 1. **Neutral mask** — a subject-specific neutral head/face surface, derived from neutral references rather than an already-expressive face.
@@ -46,7 +61,11 @@ image = L(V, camera, lights, style)
 
 ## Anatomical discretization
 
-`muscle-regions.csv` defines 44 computational muscle regions expanding to **86 independently addressable actuators** after laterality is applied. Some anatomical muscles are split into regions because a single scalar is not enough for useful facial deformation.
+`muscle-regions.csv` preserves 44 historical computational regions expanding to
+**86 compatibility inputs**. The canonical TSV expands to **102 independently
+implemented actuators**, with additional explicit grouped and excluded inputs.
+Some anatomical muscles are split because one scalar cannot express materially
+different fiber directions.
 
 This is a computational partition, not a claim that every row is a separately named anatomical muscle.
 
@@ -78,7 +97,9 @@ Those belong in later geometry and tissue files rather than being guessed here.
 - export the 36-vector;
 - independent left/right editing where specified.
 
-The 36 controls are a practical interface into the 86-actuator layer. They should remain replaceable; scientific anatomy is below them.
+The 36 controls are a practical interface into the current anatomical layer.
+They remain replaceable; anatomy is below them, and the number 36 is not a
+muscle count.
 
 ## Geometry convention
 

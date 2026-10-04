@@ -1,0 +1,26 @@
+PASS audited anatomy cannot silently disappear
+PASS all attachments and finite influence regions are valid
+PASS 36 controls and historical 86 inputs stay addressable
+PASS grouped entries resolve without losing anatomical identity
+PASS all dispositions and provenance counts agree with the canonical partition
+PASS paired muscles have independent sides
+PASS neutral is exactly neutral surface and skeleton
+PASS connected mesh, no orphan vertices, finite triangle area
+PASS finite contraction fields pull toward anchors and preserve locality
+PASS all independent muscles affect skin or a represented skeleton state
+PASS projected expression landmarks have expected directions
+PASS blink closes lid gap separately from squint
+PASS oral sphincter is circumferential with protrusion
+PASS mentalis protrudes chin/lower lip; buccinator compresses cheek
+PASS mandible opens and closes against opposing recruitment
+PASS free versus stabilized hyoid changes accessory opening mechanics
+PASS posterior temporalis retrudes rather than duplicating anterior closure
+PASS unilateral pterygoid produces excursion unlike bilateral recruitment
+PASS masseter changes ramus fullness with independent side activation
+PASS smile plus open jaw composes skin field with skeletal motion
+PASS shared modiolus includes sphincter and cheek loading, plus antagonism
+PASS signed anterior jaw motion is visible in an oblique landmark projection
+PASS all fixtures, single actuators and antagonism stay finite without folds
+PASS bad activations and control wiring fail closed
+PASS deterministic mixed recruitment remains finite and connected
+PASS 25 structural/behavior tests; 105 entries; 102 independent actuators; 2229 vertices; 4184 triangles

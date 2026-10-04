@@ -1,0 +1,1 @@
+PASS bundled demo matches exact canonical source

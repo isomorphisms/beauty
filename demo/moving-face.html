@@ -1,0 +1,446 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beauty · Muscle → moving face</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#111c24;color:#e1eaed;font:15px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:20px}h1{font-size:25px;margin:0 0 6px}p{line-height:1.5;color:#adbdc6;margin:6px 0 18px}.layout{display:grid;grid-template-columns:minmax(300px,1fr) 360px;gap:20px}canvas{width:100%;background:#17232c;border:1px solid #31434f;border-radius:8px;touch-action:none}.panel{background:#1b2a35;border:1px solid #31434f;border-radius:8px;padding:14px}h2{font-size:16px;margin:16px 0 8px}label{display:block;margin:10px 0}input[type=range],select{width:100%}select,button{background:#293e4e;color:#e9f1f3;border:1px solid #4c6373;border-radius:4px;padding:8px}button{cursor:pointer}input{accent-color:#76dbc0}.buttons{display:flex;flex-wrap:wrap;gap:6px}.buttons button{font-size:13px}pre{font:12px ui-monospace,monospace;white-space:pre-wrap;color:#bce1d6;max-height:220px;overflow:auto}.small{font-size:12px}details{margin-top:12px}.view{display:flex;gap:14px}.view label{font-size:13px}#controls{max-height:250px;overflow:auto;padding:4px}#ledger{max-height:260px;overflow:auto;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #3c505d;padding:6px;text-align:left}@media(max-width:780px){.layout{grid-template-columns:1fr}main{padding:12px}.panel{width:100%}}
+</style>
+<main><h1>Beauty · Muscle → moving face</h1><p>Activate anatomy, combine expressions, and inspect the mandible and hyoid. Drag the face to turn the view. This is a procedural reference mask.</p>
+<div class="layout"><div><canvas id="face" width="720" height="760" aria-label="Deformed facial mesh"></canvas><div class="view"><label><input id="debug" type="checkbox" checked> Anatomy</label><label><input id="wire" type="checkbox"> Mesh</label><label><input id="labels" type="checkbox"> Landmarks</label><button id="front">Front view</button></div><pre id="state"></pre></div>
+<div class="panel"><div class="buttons"><button id="reset">Neutral / reset</button><button id="animate">Animate on/off</button></div><h2>Expressions and jaw motion</h2><div id="expressions" class="buttons"></div>
+<h2>Individual muscle</h2><select id="muscle" aria-label="Muscle region"></select><label>Activation <output id="level">0.00</output><input id="activation" type="range" min="0" max="1" step="0.01" value="0"></label><label><input id="bilateral" type="checkbox"> Recruit both sides</label><div id="anatomy" class="small"></div>
+<details><summary>All 36 expression controls</summary><div id="controls"></div></details>
+<details><summary>Canonical anatomy ledger</summary><p class="small">All audited entries have a disposition. “Excluded” means geometry is absent at this fidelity, not anatomically irrelevant.</p><div id="ledger"></div></details>
+<p class="small">Approximate attachments and static muscle fields. No measured human fit, full TMJ dynamics, or swallowing model.</p></div></div></main>
+<script type="module">
+const LEDGER_TEXT="id\tcanonical_name\tlaterality\torigin_region\tinsertion_region\tprincipal_pull\taffected_tissue\tskeletal_structure\teffect\tinnervation\tmodel_actuators\tdisposition\treason\tvisibility\torigin_point\tinsertion_point\tinfluence_radius\tfield\tjaw_coefficients\thyoid_coefficients\tsource\nfrontalis_medial\tOccipitofrontalis frontal belly - medial\tpaired\tgalea\tmedial brow skin\tsuperior\tmedial brow/forehead\tnone\tskin\tVII facial\tfrontalis_medial\tindependent\tDistinct fiber field\texternal\t20;85;35\t20;50;54\t24;42;30\tpull\t0;0;0\t0;0\tface\nfrontalis_lateral\tOccipitofrontalis frontal belly - lateral\tpaired\tgalea\tlateral brow skin\tsuperior\tlateral brow/forehead\tnone\tskin\tVII facial\tfrontalis_lateral\tindependent\tDistinct fiber field\texternal\t46;85;30\t46;48;46\t25;40;30\tpull\t0;0;0\t0;0\tface\noccipitalis\tOccipitofrontalis occipital belly\tpaired\tsuperior nuchal line/mastoid\tgalea\tposterior\tposterior scalp/galea\tnone\tskin\tVII facial\tnone\texcluded\tPosterior scalp lies outside the current anterior mask; galea tension not yet transmitted\texternal\t35;75;-58\t35;85;-38\t35;40;30\tpull\t0;0;0\t0;0\tscalp\ntemporoparietalis\tTemporoparietalis\tpaired\ttemporal fascia\tgalea/auricular fascia\tsuperior\ttemporal scalp/auricle\tnone\tskin\tVII facial\ttemporoparietalis\tindependent\tDistinct fiber field\texternal\t70;72;5\t72;45;8\t25;35;30\tpull\t0;0;0\t0;0\tface\ncorrugator_supercilii\tCorrugator supercilii\tpaired\tmedial superciliary arch\tmedial brow dermis\tmedial/inferior\tmedial brow\tnone\tskin\tVII facial\tcorrugator_supercilii\tindependent\tDistinct fiber field\texternal\t9;43;54\t24;50;52\t23;22;25\tpull\t0;0;0\t0;0\tface\ndepressor_supercilii\tDepressor supercilii\tpaired\tmedial orbital margin\tmedial brow\tinferior\tmedial brow\tnone\tskin\tVII facial\tdepressor_supercilii\tindependent\tDistinct fiber field\texternal\t15;35;55\t19;50;54\t15;23;22\tpull\t0;0;0\t0;0\tface\nprocerus\tProcerus\tunpaired\tnasal bone fascia\tglabella skin\tinferior\tglabella/nasal root\tnone\tskin\tVII facial\tprocerus\tindependent\tMidline glabella actuator\texternal\t0;23;65\t0;51;57\t22;28;24\tpull\t0;0;0\t0;0\tface\norbicularis_oculi_palpebral_upper\tOrbicularis oculi - palpebral upper\tpaired\tmedial orbital ligament\teyelid/periorbital dermis\tcircumferential toward aperture\teyelids/periorbital skin\tnone\tcompression/skin\tVII facial\torbicularis_oculi_palpebral_upper\tindependent\tDistinct fiber field\texternal\t33;33;57\t33;38;56\t27;17;18\tlid_upper\t0;0;0\t0;0\tface\norbicularis_oculi_palpebral_lower\tOrbicularis oculi - palpebral lower\tpaired\tmedial orbital ligament\teyelid/periorbital dermis\tcircumferential toward aperture\teyelids/periorbital skin\tnone\tcompression/skin\tVII facial\torbicularis_oculi_palpebral_lower\tindependent\tDistinct fiber field\texternal\t33;33;57\t33;27;56\t27;17;18\tlid_lower\t0;0;0\t0;0\tface\norbicularis_oculi_orbital_superior\tOrbicularis oculi - orbital superior\tpaired\tmedial orbital ligament\teyelid/periorbital dermis\tcircumferential toward aperture\teyelids/periorbital skin\tnone\tcompression/skin\tVII facial\torbicularis_oculi_orbital_superior\tindependent\tDistinct fiber field\texternal\t33;33;57\t33;50;52\t32;30;25\teye_ring\t0;0;0\t0;0\tface\norbicularis_oculi_orbital_inferior\tOrbicularis oculi - orbital inferior\tpaired\tmedial orbital ligament\teyelid/periorbital dermis\tcircumferential toward aperture\teyelids/periorbital skin\tnone\tcompression/skin\tVII facial\torbicularis_oculi_orbital_inferior\tindependent\tDistinct fiber field\texternal\t33;33;57\t33;19;56\t32;30;25\teye_ring\t0;0;0\t0;0\tface\norbicularis_oculi_lacrimal\tOrbicularis oculi - lacrimal\tpaired\tposterior lacrimal crest\tmedial tarsal/tear apparatus\tposteromedial\tmedial eyelid\tnone\tcompression\tVII facial\torbicularis_oculi_palpebral_upper\tgrouped\tAbsorbed into same-side palpebral upper field; tear pump has no independent geometry\texternal\t14;33;48\t14;33;56\t12;14;18\tpull\t0;0;0\t0;0\torbit\nlevator_palpebrae_superioris\tLevator palpebrae superioris\tpaired\tlesser sphenoid wing\tsuperior tarsus/upper eyelid\tsuperior\tupper eyelid\tnone\tskin\tIII oculomotor\tlevator_palpebrae_superioris\tindependent\tAntagonist of upper palpebral closure\texternal\t33;58;45\t33;38;56\t27;18;20\tlid_raise\t0;0;0\t0;0\torbit\nsuperior_tarsal\tSuperior tarsal smooth muscle\tpaired\tlevator aponeurosis\tsuperior tarsus\tsuperior\tupper eyelid\tnone\tskin\tsympathetic\tlevator_palpebrae_superioris\tgrouped\tSmall tonic lid contribution shares levator field\texternal\t33;48;49\t33;38;56\t27;18;20\tlid_raise\t0;0;0\t0;0\torbit\nnasalis_transverse\tNasalis - transverse\tpaired\tmaxilla beside nose\tdorsal nasal aponeurosis\tmedial\tnasal sidewall/nostril\tnone\tcompression/skin\tVII facial\tnasalis_transverse\tindependent\tDistinct fiber field\texternal\t0;5;78\t14;5;73\t19;25;26\tpull\t0;0;0\t0;0\tface\nnasalis_alar\tNasalis - alar\tpaired\tmaxilla above lateral incisor\talar cartilage/skin\tlateral/inferior\tnasal ala/nostril\tnone\tskin\tVII facial\tnasalis_alar\tindependent\tDistinct fiber field\texternal\t28;-3;64\t15;1;76\t18;18;26\tpull\t0;0;0\t0;0\tface\ndepressor_septi_nasi\tDepressor septi nasi\tunpaired\tmaxillary incisor fossa\tmobile septum/nasal base\tinferior\tcolumella/upper lip\tnone\tskin\tVII facial\tdepressor_septi_nasi\tindependent\tMidline nasal base/lip coupling\texternal\t0;-26;69\t0;0;83\t18;26;28\tpull\t0;0;0\t0;0\tface\nlevator_labii_superioris_alaeque_nasi\tLevator labii superioris alaeque nasi\tpaired\tfrontal process maxilla\tala/upper lip\tsuperior\tnasal ala and upper lip\tnone\tskin\tVII facial\tlevator_labii_superioris_alaeque_nasi\tindependent\tDistinct fiber field\texternal\t15;29;68\t15;-18;71\t19;37;27\tpull\t0;0;0\t0;0\tface\nlevator_labii_superioris\tLevator labii superioris\tpaired\tinfraorbital maxilla\tupper lip\tsuperior\tupper lip\tnone\tskin\tVII facial\tlevator_labii_superioris\tindependent\tDistinct fiber field\texternal\t27;16;64\t19;-25;69\t24;36;27\tpull\t0;0;0\t0;0\tface\nzygomaticus_minor\tZygomaticus minor\tpaired\tanterior zygoma\tupper lip\tsuperolateral\tupper lip/nasolabial fold\tnone\tskin\tVII facial\tzygomaticus_minor\tindependent\tDistinct fiber field\texternal\t46;20;55\t23;-25;69\t28;40;32\tpull\t0;0;0\t0;0\tface\nzygomaticus_major\tZygomaticus major\tpaired\tlateral zygoma\tmodiolus\tsuperolateral\tmouth corner/cheek\tnone\tskin\tVII facial\tzygomaticus_major\tindependent\tDistinct fiber field\texternal\t58;12;47\t29;-31;63\t38;43;32\tmodiolus\t0;0;0\t0;0\tface\nlevator_anguli_oris\tLevator anguli oris\tpaired\tcanine fossa maxilla\tmodiolus\tsuperior\tmouth corner\tnone\tskin\tVII facial\tlevator_anguli_oris\tindependent\tDistinct fiber field\texternal\t31;0;63\t29;-31;63\t28;32;25\tmodiolus\t0;0;0\t0;0\tface\nrisorius\tRisorius\tpaired\tparotid/masseteric fascia\tmodiolus\tlateral\tmouth corner/lateral cheek\tnone\tskin\tVII facial\trisorius\tindependent\tDistinct fiber field\texternal\t68;-29;31\t29;-31;63\t40;27;38\tmodiolus\t0;0;0\t0;0\tface\nbuccinator\tBuccinator\tpaired\tmolar alveoli/pterygomandibular raphe\tmodiolus/oral fibers\ttoward teeth with corner tension\tcheek\tnone\tcompression/skin\tVII facial\tbuccinator\tindependent\tDistinct fiber field\texternal\t47;-23;34\t47;-23;58\t30;37;33\tcheek_compress\t0;0;0\t0;0\tface\norbicularis_oris_upper_medial\tOrbicularis oris - upper medial\tpaired\tperioral fibrous network/modiolus\tlip dermis/mucosa\tcircumferential/inward with protrusion\tlips\tnone\tcompression/skin\tVII facial\torbicularis_oris_upper_medial\tindependent\tDistinct fiber field\texternal\t0;-31;69\t10;-26;72\t19;18;24\tlip_ring\t0;0;0\t0;0\tface\norbicularis_oris_upper_lateral\tOrbicularis oris - upper lateral\tpaired\tperioral fibrous network/modiolus\tlip dermis/mucosa\tcircumferential/inward with protrusion\tlips\tnone\tcompression/skin\tVII facial\torbicularis_oris_upper_lateral\tindependent\tDistinct fiber field\texternal\t0;-31;69\t24;-27;67\t20;20;24\tlip_ring\t0;0;0\t0;0\tface\norbicularis_oris_lower_medial\tOrbicularis oris - lower medial\tpaired\tperioral fibrous network/modiolus\tlip dermis/mucosa\tcircumferential/inward with protrusion\tlips\tnone\tcompression/skin\tVII facial\torbicularis_oris_lower_medial\tindependent\tDistinct fiber field\texternal\t0;-31;69\t10;-36;73\t19;18;24\tlip_ring\t0;0;0\t0;0\tface\norbicularis_oris_lower_lateral\tOrbicularis oris - lower lateral\tpaired\tperioral fibrous network/modiolus\tlip dermis/mucosa\tcircumferential/inward with protrusion\tlips\tnone\tcompression/skin\tVII facial\torbicularis_oris_lower_lateral\tindependent\tDistinct fiber field\texternal\t0;-31;69\t24;-35;67\t20;20;24\tlip_ring\t0;0;0\t0;0\tface\nincisivus_labii_superioris\tIncisivus labii superioris\tpaired\tincisor alveolar bone\toral orbicular/modiolus network\tmedial/protrusive\tlip\tnone\tskin\tVII facial\torbicularis_oris_upper_medial\tgrouped\tShort incisive fibers share matching medial oral field; retained as distinct anatomical input\texternal\t4;-31;62\t12;-26;71\t20;20;24\tlip_ring\t0;0;0\t0;0\tface\nincisivus_labii_inferioris\tIncisivus labii inferioris\tpaired\tincisor alveolar bone\toral orbicular/modiolus network\tmedial/protrusive\tlip\tnone\tskin\tVII facial\torbicularis_oris_lower_medial\tgrouped\tShort incisive fibers share matching medial oral field; retained as distinct anatomical input\texternal\t4;-31;62\t12;-36;72\t20;20;24\tlip_ring\t0;0;0\t0;0\tface\ndepressor_anguli_oris\tDepressor anguli oris\tpaired\tmandibular oblique line\tmodiolus\tinferolateral\tmouth corner\tnone\tskin\tVII facial\tdepressor_anguli_oris\tindependent\tDistinct fiber field\texternal\t42;-67;51\t29;-31;63\t30;35;28\tmodiolus\t0;0;0\t0;0\tface\ndepressor_labii_inferioris\tDepressor labii inferioris\tpaired\tmandibular oblique line\tlower lip\tinferolateral\tlower lip\tnone\tskin\tVII facial\tdepressor_labii_inferioris\tindependent\tDistinct fiber field\texternal\t24;-65;64\t14;-37;72\t24;32;25\tpull\t0;0;0\t0;0\tface\nmentalis\tMentalis\tpaired\tmandibular incisor fossa\tchin dermis\tsuperior/anterior\tchin/lower lip\tnone\tskin/compression\tVII facial\tmentalis\tindependent\tDistinct fiber field\texternal\t10;-42;73\t10;-63;66\t25;30;27\tmentalis\t0;0;0\t0;0\tface\nplatysma_mandibular\tPlatysma - mandibular sheet\tpaired\tupper thorax superficial fascia\tlower mandible/skin\tinferior\tjawline/anterior neck\tmandible\tskin/jaw\tVII facial\tplatysma_mandibular\tindependent\tDistinct fiber field\texternal\t42;-130;25\t43;-73;49\t43;65;32\tpull\t0.08;0;0\t0;0\tface\nplatysma_lower_lip\tPlatysma - oral fibers\tpaired\tupper thorax superficial fascia\tlower lip/modiolus\tinferior\tlower lip/anterior neck\tnone\tskin\tVII facial\tplatysma_lower_lip\tindependent\tDistinct fiber field\texternal\t38;-115;28\t27;-36;64\t32;40;29\tmodiolus\t0;0;0\t0;0\tface\nmasseter_superficial\tMasseter - superficial\tpaired\tanterior zygomatic arch/zygomatic process\tmandibular angle and lower lateral ramus\tsuperior/anterior\tmasseter/ramus skin\tmandible\tjaw/bulge\tV3 trigeminal\tmasseter_superficial\tindependent\tLayer-specific axis and isochoric belly expansion\texternal\t64;4;31\t58;-61;29\t30;43;42\tbulge\t-0.65;0.10;0\t0;0\tmastication\nmasseter_intermediate\tMasseter - intermediate\tpaired\tmiddle zygomatic arch\tmiddle lateral mandibular ramus\tsuperior\tmasseter/ramus skin\tmandible\tjaw/bulge\tV3 trigeminal\tmasseter_intermediate\tindependent\tLayer-specific axis and isochoric belly expansion\texternal\t66;8;21\t62;-47;19\t30;43;42\tbulge\t-0.45;0;0\t0;0\tmastication\nmasseter_deep\tMasseter - deep\tpaired\tposterior deep surface zygomatic arch\tupper lateral ramus/coronoid vicinity\tsuperior/posterior\tmasseter/ramus skin\tmandible\tjaw/bulge\tV3 trigeminal\tmasseter_deep\tindependent\tLayer-specific axis and isochoric belly expansion\texternal\t64;12;8\t61;-31;8\t30;43;42\tbulge\t-0.45;-0.04;0\t0;0\tmastication\ntemporalis_anterior\tTemporalis - anterior fan\tpaired\ttemporal fossa/fascia\tcoronoid process\ttoward anterior temporal fan origin\ttemporal fossa skin\tmandible\tjaw/bulge\tV3 trigeminal\ttemporalis_anterior\tindependent\tPosterior fan primarily retrudes; anterior primarily elevates\texternal\t47;81;18\t51;0;14\t30;42;35\tbulge\t-0.70;0;0\t0;0\tmastication\ntemporalis_middle\tTemporalis - middle fan\tpaired\ttemporal fossa/fascia\tcoronoid process\ttoward middle temporal fan origin\ttemporal fossa skin\tmandible\tjaw/bulge\tV3 trigeminal\ttemporalis_middle\tindependent\tPosterior fan primarily retrudes; anterior primarily elevates\texternal\t64;57;-7\t51;0;14\t30;42;35\tbulge\t-0.45;-0.16;0\t0;0\tmastication\ntemporalis_posterior\tTemporalis - posterior fan\tpaired\ttemporal fossa/fascia\tcoronoid process\ttoward posterior temporal fan origin\ttemporal fossa skin\tmandible\tjaw/bulge\tV3 trigeminal\ttemporalis_posterior\tindependent\tPosterior fan primarily retrudes; anterior primarily elevates\texternal\t67;29;-32\t51;0;14\t30;42;35\tbulge\t-0.12;-0.65;0\t0;0\tmastication\nmedial_pterygoid_superficial\tMedial pterygoid - superficial head\tpaired\tmaxillary tuberosity/palatine pyramidal process\tmedial mandibular angle\tsuperior/anterior/medial\tdeep ramus tissues\tmandible\tjaw\tV3 trigeminal\tmedial_pterygoid_superficial\tindependent\tDeep muscle drives mandible without speculative surface bulge\tjaw_hyoid\t30;5;34\t48;-61;10\t25;40;30\tskeletal\t-0.30;0.16;-0.17\t0;0\tmastication\nmedial_pterygoid_deep\tMedial pterygoid - deep head\tpaired\tmedial face of lateral pterygoid plate/pterygoid fossa\tmedial mandibular angle\tsuperior/anterior/medial\tdeep ramus tissues\tmandible\tjaw\tV3 trigeminal\tmedial_pterygoid_deep\tindependent\tDeep muscle drives mandible without speculative surface bulge\tjaw_hyoid\t24;17;21\t48;-61;10\t25;40;30\tskeletal\t-0.50;0.23;-0.25\t0;0\tmastication\nlateral_pterygoid_superior\tLateral pterygoid - superior head\tpaired\tgreater sphenoid wing\tTMJ disc/capsule/condylar complex\tanteromedial\tdeep TMJ\tmandible/disc\tjaw\tV3 trigeminal\tlateral_pterygoid_superior\tindependent\tApproximate closing-phase disc stabilization and protrusive contribution; no disc mesh\tjaw_hyoid\t27;25;28\t58;13;2\t20;25;25\tskeletal\t-0.04;0.20;-0.15\t0;0\tmastication\nlateral_pterygoid_inferior\tLateral pterygoid - inferior head\tpaired\tlateral pterygoid plate\tcondylar neck/fovea\tanteromedial\tdeep TMJ\tmandible\tjaw\tV3 trigeminal\tlateral_pterygoid_inferior\tindependent\tProtrusion and contralateral excursion dominate opening\tjaw_hyoid\t26;5;34\t58;11;2\t22;30;30\tskeletal\t0.12;0.60;-0.70\t0;0\tmastication\ndigastric_anterior\tDigastric - anterior belly\tpaired\tmandibular digastric fossa\tintermediate tendon/hyoid sling\tinferoposterior with fixed hyoid\tsubmental tissues\tmandible/hyoid\tjaw/hyoid\tV3 trigeminal\tdigastric_anterior\tindependent\tOpening requires infrahyoid stabilization; mobile hyoid instead elevates\tjaw_hyoid/external\t9;-98;18\t9;-73;59\t26;35;36\thyoid\t0.65;0;0\t0.55;0.25\thyoid\ndigastric_posterior\tDigastric - posterior belly\tpaired\tmastoid notch\tintermediate tendon/hyoid sling\tsuperoposterior\tsubmandibular tissues\thyoid\thyoid\tVII facial\tdigastric_posterior\tindependent\tHyoid elevation/retraction; not a duplicate jaw opener\tjaw_hyoid/external\t62;-2;-13\t16;-98;18\t25;45;40\thyoid\t0;0;0\t0.55;-0.25\thyoid\nmylohyoid\tMylohyoid\tpaired\tmandibular mylohyoid line\tmedian raphe/hyoid\tsuperior with free hyoid\tfloor of mouth/submental\tmandible/hyoid\tjaw/hyoid\tV3 trigeminal\tmylohyoid\tindependent\tSling elevation or stabilized jaw depression\tjaw_hyoid/external\t23;-65;41\t12;-95;24\t35;35;40\thyoid\t0.25;0;0\t0.60;0.05\thyoid\ngeniohyoid\tGeniohyoid\tpaired\tinferior mental spine\thyoid body\tanterosuperior\tsubmental/floor of mouth\tmandible/hyoid\tjaw/hyoid\tC1 via XII\tgeniohyoid\tindependent\tOpening depends on hyoid fixation\tjaw_hyoid/external\t6;-68;57\t6;-98;18\t28;37;42\thyoid\t0.40;0;0\t0.55;0.55\thyoid\nstylohyoid\tStylohyoid\tpaired\tstyloid process\thyoid body\tposterosuperior\tsubmandibular tissues\thyoid\thyoid\tVII facial\tstylohyoid\tindependent\tElevates and retracts hyoid\tjaw_hyoid/external\t49;0;-14\t17;-98;18\t28;42;42\thyoid\t0;0;0\t0.45;-0.40\thyoid\nsternohyoid\tSternohyoid\tpaired\tposterior manubrium/medial clavicle/sternoclavicular ligament\thyoid body\tinferior with lower attachment fixed\tanterior neck\thyoid/larynx\thyoid\tansa cervicalis C1-C3\tsternohyoid\tindependent\tApproximate inferior support; larynx not independently meshed\tjaw_hyoid/external\t12;-155;14\t12;-98;18\t32;45;36\thyoid\t0;0;0\t-0.65;0\thyoid\nomohyoid_superior\tOmohyoid - superior belly\tpaired\tintermediate omohyoid tendon\thyoid body\tinferior with lower attachment fixed\tanterior neck\thyoid/larynx\thyoid\tansa cervicalis C1-C3\tomohyoid_superior\tindependent\tApproximate inferior support; larynx not independently meshed\tjaw_hyoid/external\t47;-137;6\t18;-98;18\t32;45;36\thyoid\t0;0;0\t-0.40;-0.08\thyoid\nsternothyroid\tSternothyroid\tpaired\tposterior manubrium/first costal cartilage\tthyroid cartilage\tinferior with lower attachment fixed\tanterior neck\thyoid/larynx\tlarynx/hyoid indirectly\tansa cervicalis C1-C3\tsternothyroid\tindependent\tApproximate inferior support; larynx not independently meshed\tjaw_hyoid/external\t17;-155;8\t17;-120;12\t32;45;36\thyoid\t0;0;0\t-0.25;0\thyoid\nthyrohyoid\tThyrohyoid\tpaired\tthyroid cartilage\thyoid body\tinferior with lower attachment fixed\tanterior neck\thyoid/larynx\thyoid\tC1 via XII\tthyrohyoid\tindependent\tApproximate inferior support; larynx not independently meshed\tjaw_hyoid/external\t18;-122;13\t18;-98;18\t32;45;36\thyoid\t0;0;0\t-0.30;0\thyoid\nomohyoid_inferior\tOmohyoid - inferior belly\tpaired\tsuperior scapular border\tintermediate tendon\tinferolateral tendon tension\tlow lateral neck\thyoid via tendon\thyoid\tansa cervicalis C1-C3\tomohyoid_superior\tgrouped\tCommon tendon shares superior-belly stabilization actuator\tjaw_hyoid\t65;-155;-5\t47;-137;6\t30;40;30\thyoid\t0;0;0\t-0.30;0\thyoid\nauricularis_anterior\tAuricularis anterior\tpaired\tscalp fascia/mastoid\tauricular cartilage\tanterior\tauricle\tnone\tskin\tVII facial\tauricularis_anterior\tindependent\tCoarse pinna displacement; intrinsic cartilage absent\texternal\t69;23;31\t80;17;11\t20;28;26\tpull\t0;0;0\t0;0\tear\nauricularis_superior\tAuricularis superior\tpaired\tscalp fascia/mastoid\tauricular cartilage\tsuperior\tauricle\tnone\tskin\tVII facial\tauricularis_superior\tindependent\tCoarse pinna displacement; intrinsic cartilage absent\texternal\t72;59;8\t81;31;7\t20;28;26\tpull\t0;0;0\t0;0\tear\nauricularis_posterior\tAuricularis posterior\tpaired\tscalp fascia/mastoid\tauricular cartilage\tposterior\tauricle\tnone\tskin\tVII facial\tauricularis_posterior\tindependent\tCoarse pinna displacement; intrinsic cartilage absent\texternal\t65;13;-18\t81;15;3\t20;28;26\tpull\t0;0;0\t0;0\tear\nhelicis_major\thelicis major\tpaired\thelical spine\tanterior helix\tshorten helix\tauricular cartilage/skin\tnone\tskin/compression\tVII facial\tnone\texcluded\tCoarse pinna has no helix/tragus cartilage topology; independent shape effect deferred\texternal\t80;20;7\t82;22;9\t10;15;10\tnone\t0;0;0\t0;0\tear\nhelicis_minor\thelicis minor\tpaired\thelical crus base\thelical crus\tcompress crus\tauricular cartilage/skin\tnone\tskin/compression\tVII facial\tnone\texcluded\tCoarse pinna has no helix/tragus cartilage topology; independent shape effect deferred\texternal\t80;20;7\t82;22;9\t10;15;10\tnone\t0;0;0\t0;0\tear\ntragicus\ttragicus\tpaired\ttragus base\ttragus apex\tcompress tragus\tauricular cartilage/skin\tnone\tskin/compression\tVII facial\tnone\texcluded\tCoarse pinna has no helix/tragus cartilage topology; independent shape effect deferred\texternal\t80;20;7\t82;22;9\t10;15;10\tnone\t0;0;0\t0;0\tear\nantitragicus\tantitragicus\tpaired\tantitragus\ttail of helix/antihelix\tfold antitragus\tauricular cartilage/skin\tnone\tskin/compression\tVII facial\tnone\texcluded\tCoarse pinna has no helix/tragus cartilage topology; independent shape effect deferred\texternal\t80;20;7\t82;22;9\t10;15;10\tnone\t0;0;0\t0;0\tear\ntransversus_auriculae\ttransversus auriculae\tpaired\tconchal eminence\tscapha eminence\tflatten posterior pinna\tauricular cartilage/skin\tnone\tskin/compression\tVII facial\tnone\texcluded\tCoarse pinna has no helix/tragus cartilage topology; independent shape effect deferred\texternal\t80;20;7\t82;22;9\t10;15;10\tnone\t0;0;0\t0;0\tear\nobliquus_auriculae\tobliquus auriculae\tpaired\tupper concha\tupper pinna convexity\tfold superior pinna\tauricular cartilage/skin\tnone\tskin/compression\tVII facial\tnone\texcluded\tCoarse pinna has no helix/tragus cartilage topology; independent shape effect deferred\texternal\t80;20;7\t82;22;9\t10;15;10\tnone\t0;0;0\t0;0\tear\ngenioglossus\tGenioglossus\tpaired\tsuperior mental spine\ttongue body/hyoid\tprotrude/depress tongue\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tXII hypoglossal\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\nhyoglossus\tHyoglossus\tpaired\thyoid body/greater horn\ttongue side\tdepress/retract tongue\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tXII hypoglossal\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\nstyloglossus\tStyloglossus\tpaired\tstyloid process\ttongue side\tretract/elevate tongue\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tXII hypoglossal\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\npalatoglossus\tPalatoglossus\tpaired\tpalatine aponeurosis\tposterior tongue\televate tongue root/depress palate\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tX pharyngeal plexus\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\ntongue_superior_longitudinal\tTongue superior longitudinal\tpaired\tsubmucosal tongue root\ttongue tip/edges\tshorten/curl tip up\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tXII hypoglossal\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\ntongue_inferior_longitudinal\tTongue inferior longitudinal\tpaired\ttongue root\ttongue tip\tshorten/curl tip down\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tXII hypoglossal\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\ntongue_transverse\tTongue transverse\tpaired\tmedian septum\tlateral tongue\tnarrow/elongate tongue\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tXII hypoglossal\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\ntongue_vertical\tTongue vertical\tpaired\tdorsal tongue\tventral tongue\tflatten/widen tongue\ttongue/floor of mouth\thyoid for genioglossus/hyoglossus\tsoft-tissue\tXII hypoglossal\tnone\texcluded\tCan change open-mouth view; tongue volume and attachment load coupling not yet represented\topen_mouth/jaw_hyoid\t8;-48;30\t8;-40;52\t25;25;30\tnone\t0;0;0\t0;0\ttongue\ntensor_veli_palatini\tTensor veli palatini\tpaired\tscaphoid fossa/auditory tube\tpalatine aponeurosis via hamulus\ttension palate\tsoft palate/uvula\tlarynx indirectly\tsoft-tissue\tV3 trigeminal\tnone\texcluded\tCan change deep open-mouth view; no palate/uvula/pharyngeal mesh; outside current external-face fidelity\topen_mouth\t8;-1;12\t8;-22;21\t20;20;20\tnone\t0;0;0\t0;0\tpalate\nlevator_veli_palatini\tLevator veli palatini\tpaired\tpetrous temporal bone/auditory tube\tpalatine aponeurosis\televate palate\tsoft palate/uvula\tlarynx indirectly\tsoft-tissue\tX pharyngeal plexus\tnone\texcluded\tCan change deep open-mouth view; no palate/uvula/pharyngeal mesh; outside current external-face fidelity\topen_mouth\t8;-1;12\t8;-22;21\t20;20;20\tnone\t0;0;0\t0;0\tpalate\npalatopharyngeus\tPalatopharyngeus\tpaired\thard palate/aponeurosis\tpharyngeal wall/thyroid cartilage\televate pharynx/depress palate\tsoft palate/uvula\tlarynx indirectly\tsoft-tissue\tX pharyngeal plexus\tnone\texcluded\tCan change deep open-mouth view; no palate/uvula/pharyngeal mesh; outside current external-face fidelity\topen_mouth\t8;-1;12\t8;-22;21\t20;20;20\tnone\t0;0;0\t0;0\tpalate\nmusculus_uvulae\tMusculus uvulae\tpaired\tposterior nasal spine/aponeurosis\tuvula mucosa\tshorten/elevate uvula\tsoft palate/uvula\tlarynx indirectly\tsoft-tissue\tX pharyngeal plexus\tnone\texcluded\tCan change deep open-mouth view; no palate/uvula/pharyngeal mesh; outside current external-face fidelity\topen_mouth\t8;-1;12\t8;-22;21\t20;20;20\tnone\t0;0;0\t0;0\tpalate\nsternocleidomastoid_sternal\tSternocleidomastoid - sternal head\tpaired\tsternal manubrium\tmastoid/lateral nuchal line\tipsilateral bend/contralateral turn\tlateral upper neck\thead\tskin/head pose\tXI accessory/C2-C3\tnone\texcluded\tWould alter neck silhouette and head pose; present demo fixes skull and lacks lateral neck muscle volumes\texternal\t40;-155;6\t65;0;-11\t35;85;35\tnone\t0;0;0\t0;0\tneck\nsternocleidomastoid_clavicular\tSternocleidomastoid - clavicular head\tpaired\tmedial clavicle\tmastoid/lateral nuchal line\tipsilateral bend/contralateral turn\tlateral upper neck\thead\tskin/head pose\tXI accessory/C2-C3\tnone\texcluded\tWould alter neck silhouette and head pose; present demo fixes skull and lacks lateral neck muscle volumes\texternal\t40;-155;6\t65;0;-11\t35;85;35\tnone\t0;0;0\t0;0\tneck\nscalenus_anterior\tscalenus anterior\tpaired\tC3-C6 transverse processes\tfirst rib\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nscalenus_medius\tscalenus medius\tpaired\tC2-C7 transverse processes\tfirst rib\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nscalenus_posterior\tscalenus posterior\tpaired\tC4-C6 transverse processes\tsecond rib\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\ntrapezius_upper\ttrapezius upper\tpaired\tocciput/nuchal ligament\tclavicle/acromion\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tXI accessory/C3-C4\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nsplenius_capitis\tsplenius capitis\tpaired\tnuchal ligament/C7-T3 spines\tmastoid/nuchal line\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nsemispinalis_capitis\tsemispinalis capitis\tpaired\tupper thoracic/cervical processes\tocciput\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nlongus_capitis\tlongus capitis\tpaired\tC3-C6 transverse processes\tbasilar occiput\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nlongus_colli\tlongus colli\tpaired\tcervical/upper thoracic bodies\tcervical bodies/transverse processes\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nrectus_capitis_anterior\trectus capitis anterior\tpaired\tatlas lateral mass\tbasilar occiput\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nrectus_capitis_lateralis\trectus capitis lateralis\tpaired\tatlas transverse process\toccipital jugular process\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nrectus_capitis_posterior_major\trectus capitis posterior major\tpaired\taxis spinous process\tinferior nuchal line\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nrectus_capitis_posterior_minor\trectus capitis posterior minor\tpaired\tatlas posterior tubercle\tinferior nuchal line\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nobliquus_capitis_superior\tobliquus capitis superior\tpaired\tatlas transverse process\tocciput\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nobliquus_capitis_inferior\tobliquus capitis inferior\tpaired\taxis spinous process\tatlas transverse process\tneck/head stabilization and rotation by fiber direction\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited upper-neck boundary; skull pose fixed and posterior/deep neck geometry absent\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nsuperior_rectus\tsuperior rectus\tpaired\torbital apex except inferior oblique from orbital maxilla\tsclera\trotate eyeball\teyeball/conjunctival appearance\tnone\tgaze\tIII oculomotor\tnone\texcluded\tVisible gaze requires independent eyeball rotation; fixed eyeballs in this muscle-deformation slice\texternal\t33;33;25\t33;33;58\t20;20;20\tnone\t0;0;0\t0;0\torbit\ninferior_rectus\tinferior rectus\tpaired\torbital apex except inferior oblique from orbital maxilla\tsclera\trotate eyeball\teyeball/conjunctival appearance\tnone\tgaze\tIII oculomotor\tnone\texcluded\tVisible gaze requires independent eyeball rotation; fixed eyeballs in this muscle-deformation slice\texternal\t33;33;25\t33;33;58\t20;20;20\tnone\t0;0;0\t0;0\torbit\nmedial_rectus\tmedial rectus\tpaired\torbital apex except inferior oblique from orbital maxilla\tsclera\trotate eyeball\teyeball/conjunctival appearance\tnone\tgaze\tIII oculomotor\tnone\texcluded\tVisible gaze requires independent eyeball rotation; fixed eyeballs in this muscle-deformation slice\texternal\t33;33;25\t33;33;58\t20;20;20\tnone\t0;0;0\t0;0\torbit\nlateral_rectus\tlateral rectus\tpaired\torbital apex except inferior oblique from orbital maxilla\tsclera\trotate eyeball\teyeball/conjunctival appearance\tnone\tgaze\tVI abducens\tnone\texcluded\tVisible gaze requires independent eyeball rotation; fixed eyeballs in this muscle-deformation slice\texternal\t33;33;25\t33;33;58\t20;20;20\tnone\t0;0;0\t0;0\torbit\nsuperior_oblique\tsuperior oblique\tpaired\torbital apex except inferior oblique from orbital maxilla\tsclera\trotate eyeball\teyeball/conjunctival appearance\tnone\tgaze\tIV trochlear\tnone\texcluded\tVisible gaze requires independent eyeball rotation; fixed eyeballs in this muscle-deformation slice\texternal\t33;33;25\t33;33;58\t20;20;20\tnone\t0;0;0\t0;0\torbit\ninferior_oblique\tinferior oblique\tpaired\torbital apex except inferior oblique from orbital maxilla\tsclera\trotate eyeball\teyeball/conjunctival appearance\tnone\tgaze\tIII oculomotor\tnone\texcluded\tVisible gaze requires independent eyeball rotation; fixed eyeballs in this muscle-deformation slice\texternal\t33;33;25\t33;33;58\t20;20;20\tnone\t0;0;0\t0;0\torbit\ntensor_tympani\ttensor tympani\tpaired\tmiddle ear bone\tauditory ossicle\tmiddle-ear tension\tmiddle ear\tauditory ossicles\tnone\tV3 trigeminal\tnone\texcluded\tNo external or open-mouth surface effect at current fidelity\tnone\t65;12;0\t65;12;1\t1;1;1\tnone\t0;0;0\t0;0\tear\nstapedius\tstapedius\tpaired\tmiddle ear bone\tauditory ossicle\tmiddle-ear tension\tmiddle ear\tauditory ossicles\tnone\tVII facial\tnone\texcluded\tNo external or open-mouth surface effect at current fidelity\tnone\t65;12;0\t65;12;1\t1;1;1\tnone\t0;0;0\t0;0\tear\nlongissimus_capitis\tLongissimus capitis\tpaired\tupper thoracic transverse/lower cervical articular processes\tmastoid process\thead/neck extension and ipsilateral bending; scapular elevation for levator scapulae\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited adjacent upper-neck boundary; fixed skull and absent deep/posterior neck volumes at this fidelity\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nlongissimus_cervicis\tLongissimus cervicis\tpaired\tupper thoracic transverse processes\tC2-C6 posterior transverse tubercles\thead/neck extension and ipsilateral bending; scapular elevation for levator scapulae\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited adjacent upper-neck boundary; fixed skull and absent deep/posterior neck volumes at this fidelity\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nsplenius_cervicis\tSplenius cervicis\tpaired\tT3-T6 spinous processes\tC1-C3 transverse processes\thead/neck extension and ipsilateral bending; scapular elevation for levator scapulae\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited adjacent upper-neck boundary; fixed skull and absent deep/posterior neck volumes at this fidelity\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nsemispinalis_cervicis\tSemispinalis cervicis\tpaired\tT1-T6 transverse processes\tC2-C5 spinous processes\thead/neck extension and ipsilateral bending; scapular elevation for levator scapulae\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited adjacent upper-neck boundary; fixed skull and absent deep/posterior neck volumes at this fidelity\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\nlevator_scapulae\tLevator scapulae\tpaired\tC1-C4 transverse processes\tsuperomedial scapular border\thead/neck extension and ipsilateral bending; scapular elevation for levator scapulae\tupper neck\thead/cervical spine\thead pose\tcervical spinal nerves\tnone\texcluded\tAudited adjacent upper-neck boundary; fixed skull and absent deep/posterior neck volumes at this fidelity\texternal\t48;-100;-20\t48;0;-30\t35;70;35\tnone\t0;0;0\t0;0\tneck\n";
+const CONTROL_TEXT="ordinal,id,min,max,meaning,main_anatomical_drivers\n1,brow_outer_raise_L,0,1,raise left lateral brow,frontalis_lateral_L\n2,brow_outer_raise_R,0,1,raise right lateral brow,frontalis_lateral_R\n3,brow_inner_raise_L,0,1,raise left medial brow,frontalis_medial_L\n4,brow_inner_raise_R,0,1,raise right medial brow,frontalis_medial_R\n5,brow_lower_L,0,1,lower/draw together left brow,corrugator_supercilii_L;depressor_supercilii_L;procerus\n6,brow_lower_R,0,1,lower/draw together right brow,corrugator_supercilii_R;depressor_supercilii_R;procerus\n7,upper_lid_raise_L,0,1,raise left upper eyelid,levator_palpebrae_superioris_L\n8,upper_lid_raise_R,0,1,raise right upper eyelid,levator_palpebrae_superioris_R\n9,eye_close_L,0,1,close left eye,orbicularis_oculi_palpebral_upper_L;orbicularis_oculi_palpebral_lower_L\n10,eye_close_R,0,1,close right eye,orbicularis_oculi_palpebral_upper_R;orbicularis_oculi_palpebral_lower_R\n11,cheek_raise_L,0,1,raise/compress left cheek,orbicularis_oculi_orbital_inferior_L;zygomaticus_major_L\n12,cheek_raise_R,0,1,raise/compress right cheek,orbicularis_oculi_orbital_inferior_R;zygomaticus_major_R\n13,nose_wrinkle_L,0,1,wrinkle/compress left nose,nasalis_transverse_L;levator_labii_superioris_alaeque_nasi_L\n14,nose_wrinkle_R,0,1,wrinkle/compress right nose,nasalis_transverse_R;levator_labii_superioris_alaeque_nasi_R\n15,nostril_dilate_L,0,1,dilate left nostril,nasalis_alar_L\n16,nostril_dilate_R,0,1,dilate right nostril,nasalis_alar_R\n17,upper_lip_raise_L,0,1,raise left upper lip,levator_labii_superioris_L;levator_labii_superioris_alaeque_nasi_L;zygomaticus_minor_L\n18,upper_lip_raise_R,0,1,raise right upper lip,levator_labii_superioris_R;levator_labii_superioris_alaeque_nasi_R;zygomaticus_minor_R\n19,lip_corner_raise_L,0,1,raise left mouth corner,zygomaticus_major_L;levator_anguli_oris_L\n20,lip_corner_raise_R,0,1,raise right mouth corner,zygomaticus_major_R;levator_anguli_oris_R\n21,lip_corner_pull_L,0,1,pull left mouth corner laterally,risorius_L;zygomaticus_major_L\n22,lip_corner_pull_R,0,1,pull right mouth corner laterally,risorius_R;zygomaticus_major_R\n23,lip_corner_depress_L,0,1,depress left mouth corner,depressor_anguli_oris_L;platysma_lower_lip_L\n24,lip_corner_depress_R,0,1,depress right mouth corner,depressor_anguli_oris_R;platysma_lower_lip_R\n25,lower_lip_depress_L,0,1,depress left lower lip,depressor_labii_inferioris_L;platysma_lower_lip_L\n26,lower_lip_depress_R,0,1,depress right lower lip,depressor_labii_inferioris_R;platysma_lower_lip_R\n27,chin_raise_L,0,1,raise/protrude left lower lip and chin,mentalis_L\n28,chin_raise_R,0,1,raise/protrude right lower lip and chin,mentalis_R\n29,lip_pucker,0,1,purse/protrude lips,orbicularis_oris_*;incisivus_labii_superioris_*;incisivus_labii_inferioris_*\n30,lip_funnel,0,1,funnel lips forward,orbicularis_oris_*;buccinator_*\n31,lip_press,0,1,press lips together,orbicularis_oris_*;incisivus_labii_superioris_*;incisivus_labii_inferioris_*\n32,jaw_open,0,1,open/depress mandible,lateral_pterygoid_inferior_*;digastric_anterior_*;mylohyoid_*\n33,jaw_left,0,1,move mandible toward subject left,contralateral_pterygoid_dominant;mechanical_jaw_solver\n34,jaw_right,0,1,move mandible toward subject right,contralateral_pterygoid_dominant;mechanical_jaw_solver\n35,jaw_protrude,0,1,protrude mandible,lateral_pterygoid_*;medial_pterygoid_*;masseter_superficial_*\n36,neck_tense,0,1,tense visible anterior neck/mandibular sheet,platysma_mandibular_*;platysma_lower_lip_*\n";
+// Reference fallback. +X subject left, +Y superior, +Z anterior; millimetres.
+const clamp=(n,lo=0,hi=1)=>Math.max(lo,Math.min(hi,n));
+const add=(a,b)=>a.map((v,i)=>v+b[i]);
+const sub=(a,b)=>a.map((v,i)=>v-b[i]);
+const scale=(a,n)=>a.map(v=>v*n);
+const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
+const length=a=>Math.hypot(...a);
+const unit=a=>scale(a,1/(length(a)||1));
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+function readTable(text,separator='\t') {
+  const lines=text.trim().split(/\r?\n/), keys=lines.shift().split(separator);
+  return lines.map(line=>Object.fromEntries(line.split(separator).map((v,i)=>[keys[i],v])));
+}
+const numbers=s=>s.split(';').map(Number);
+function compileAnatomy(ledger) {
+  const actuators=[];
+  for(const row of ledger.filter(r=>r.disposition==='independent')) {
+    for(const side of row.laterality==='paired'?['L','R']:['U']) {
+      const sign=side==='R'?-1:1;
+      const mirror=p=>[p[0]*sign,p[1],p[2]];
+      actuators.push({...row,id:row.id+(side==='U'?'':'_'+side),region_id:row.id,side,
+        origin:mirror(numbers(row.origin_point)),insertion:mirror(numbers(row.insertion_point)),
+        radius:numbers(row.influence_radius),jaw:numbers(row.jaw_coefficients),
+        hyoid:numbers(row.hyoid_coefficients)});
+    }
+  }
+  const byId=Object.fromEntries(actuators.map(a=>[a.id,a]));
+  const aliases={};
+  for(const row of ledger.filter(r=>r.disposition==='grouped'))
+    for(const side of row.laterality==='paired'?['L','R']:['U']) {
+      const suffix=side==='U'?'':'_'+side;
+      aliases[row.id+suffix]=row.model_actuators+suffix;
+    }
+  // Existing 86-region interface retained; old unsplit medial pterygoid drives
+  // both anatomical heads with the same activation, without adding anatomy.
+  for(const side of ['L','R']) aliases['medial_pterygoid_'+side]=
+    ['medial_pterygoid_superficial_'+side,'medial_pterygoid_deep_'+side];
+  return {ledger,actuators,byId,aliases};
+}
+function validatedActivations(anatomy,inputs={}) {
+  const q=Object.fromEntries(anatomy.actuators.map(a=>[a.id,0]));
+  for(const [id,value] of Object.entries(inputs)) {
+    if(!Number.isFinite(value)||value<0||value>1) throw Error('Invalid activation: '+id);
+    const targets=id in q?[id]:anatomy.aliases[id];
+    if(!targets) throw Error('Unknown or excluded actuator: '+id);
+    for(const target of Array.isArray(targets)?targets:[targets]) {
+      if(!(target in q)) throw Error('Unresolved grouped actuator: '+target);
+      q[target]=Math.max(q[target],value);
+    }
+  }
+  return q;
+}
+const driverRules={
+ brow_outer_raise:[['frontalis_lateral',1]],brow_inner_raise:[['frontalis_medial',1]],
+ brow_lower:[['corrugator_supercilii',1],['depressor_supercilii',.6],['procerus',.35]],
+ upper_lid_raise:[['levator_palpebrae_superioris',1]],
+ eye_close:[['orbicularis_oculi_palpebral_upper',1],['orbicularis_oculi_palpebral_lower',1]],
+ cheek_raise:[['orbicularis_oculi_orbital_inferior',.8],['zygomaticus_major',.25]],
+ nose_wrinkle:[['nasalis_transverse',.8],['levator_labii_superioris_alaeque_nasi',.45]],
+ nostril_dilate:[['nasalis_alar',1]],
+ upper_lip_raise:[['levator_labii_superioris',.75],['levator_labii_superioris_alaeque_nasi',.45],['zygomaticus_minor',.45]],
+ lip_corner_raise:[['zygomaticus_major',.85],['levator_anguli_oris',.65]],
+ lip_corner_pull:[['risorius',.8],['zygomaticus_major',.2]],
+ lip_corner_depress:[['depressor_anguli_oris',.9],['platysma_lower_lip',.25]],
+ lower_lip_depress:[['depressor_labii_inferioris',.9],['platysma_lower_lip',.15]],
+ chin_raise:[['mentalis',1]]
+};
+function controlsToMuscles(anatomy,controlRows,values={}) {
+  const valid=new Set(controlRows.map(r=>r.id));
+  for(const [id,v] of Object.entries(values))
+    if(!valid.has(id)||!Number.isFinite(v)||v<0||v>1) throw Error('Invalid control: '+id);
+  const q=validatedActivations(anatomy);
+  const recruit=(id,v)=>{if(!(id in q)) throw Error('Bad control wiring: '+id); q[id]=clamp(q[id]+v);};
+  const pair=(id,v)=>{for(const side of ['L','R']) recruit(id+'_'+side,v);};
+  for(const [id,v] of Object.entries(values)) {
+    const match=id.match(/^(.*)_([LR])$/);
+    if(match&&driverRules[match[1]]) {
+      for(const [driver,gain] of driverRules[match[1]]) recruit(driver+(driver==='procerus'?'':'_'+match[2]),v*gain);
+      continue;
+    }
+    if(['lip_pucker','lip_funnel','lip_press'].includes(id)) {
+      for(const region of ['upper_medial','upper_lateral','lower_medial','lower_lateral'])
+        pair('orbicularis_oris_'+region,v*(id==='lip_funnel'?.65:id==='lip_press'?.55:1));
+      if(id==='lip_funnel') pair('buccinator',v*.3);
+    } else if(id==='jaw_open') {
+      pair('digastric_anterior',v);pair('geniohyoid',v*.6);pair('mylohyoid',v*.25);
+      pair('sternohyoid',v*.85);pair('omohyoid_superior',v*.5);
+      pair('lateral_pterygoid_inferior',v*.25);
+    } else if(id==='jaw_protrude') {
+      pair('lateral_pterygoid_inferior',v*.7);pair('medial_pterygoid_superficial',v*.2);
+    } else if(id==='jaw_left'||id==='jaw_right') {
+      // Pterygoid contraction pulls jaw contralaterally: +X is subject left.
+      recruit('lateral_pterygoid_inferior_'+(id==='jaw_left'?'R':'L'),v*.8);
+    } else if(id==='neck_tense') {
+      pair('platysma_mandibular',v);pair('platysma_lower_lip',v*.5);
+    } else throw Error('Unwired control: '+id);
+  }
+  // Voluntary opening suppresses closing recruitment at control resolution;
+  // direct activation remains available for co-contraction experiments.
+  const opening=values.jaw_open||0;
+  for(const a of anatomy.actuators) if(a.jaw[0]<0) q[a.id]*=1-opening;
+  return q;
+}
+const expressions={
+ neutral:{},smile:{lip_corner_raise_L:.8,lip_corner_raise_R:.8,cheek_raise_L:.45,cheek_raise_R:.45},
+ asymmetric_smile:{lip_corner_raise_L:.9,cheek_raise_L:.3},
+ frown:{lip_corner_depress_L:.8,lip_corner_depress_R:.8,brow_lower_L:.4,brow_lower_R:.4},
+ brow_raise:{brow_outer_raise_L:.8,brow_outer_raise_R:.8,brow_inner_raise_L:.8,brow_inner_raise_R:.8},
+ squint:{cheek_raise_L:.9,cheek_raise_R:.9},blink:{eye_close_L:1,eye_close_R:1},
+ nose_flare:{nostril_dilate_L:1,nostril_dilate_R:1},lip_purse:{lip_pucker:.85},
+ upper_lip_raise:{upper_lip_raise_L:.8,upper_lip_raise_R:.8},
+ lower_lip_depression:{lower_lip_depress_L:.8,lower_lip_depress_R:.8},
+ chin_raise:{chin_raise_L:.8,chin_raise_R:.8},jaw_open:{jaw_open:.85},
+ protruded_jaw:{jaw_protrude:.9},left_excursion:{jaw_left:.9},right_excursion:{jaw_right:.9},
+ smile_open:{lip_corner_raise_L:.8,lip_corner_raise_R:.8,jaw_open:.7},
+ purse_cheek:{lip_pucker:.8,lip_funnel:.7}
+};
+const activationExamples={
+ clench:{masseter_superficial_L:1,masseter_superficial_R:1,temporalis_anterior_L:.55,temporalis_anterior_R:.55},
+ retruded_jaw:{temporalis_posterior_L:.8,temporalis_posterior_R:.8},
+ unilateral_masseter:{masseter_superficial_L:1},
+ purse_compress:{orbicularis_oris_upper_medial_L:.8,orbicularis_oris_upper_medial_R:.8,
+  orbicularis_oris_lower_medial_L:.8,orbicularis_oris_lower_medial_R:.8,buccinator_L:.8,buccinator_R:.8}
+};
+function solveSkeleton(anatomy,q) {
+  let opening=0,protrusion=0,excursion=0,hy=0,hz=0,stabilizers=0;
+  for(const a of anatomy.actuators) if(a.hyoid[0]<0) stabilizers+=q[a.id]*Math.abs(a.hyoid[0]);
+  const fixation=clamp(stabilizers/1.4);
+  let closure=0;
+  for(const a of anatomy.actuators) {
+    const v=q[a.id];
+    const conditional=['digastric_anterior','mylohyoid','geniohyoid'].includes(a.region_id)?fixation:1;
+    opening+=v*a.jaw[0]*conditional;closure+=v*Math.max(0,-a.jaw[0]);
+    protrusion+=v*a.jaw[1];excursion+=v*a.jaw[2]*(a.side==='R'?-1:1);
+    hy+=v*a.hyoid[0]*(a.hyoid[0]>0?1-fixation:.15);hz+=v*a.hyoid[1]*(1-fixation);
+  }
+  // Passive rest is a closed jaw. Closers oppose opening but cannot rotate
+  // through the dental stop. Protrusion/retrusion are signed translations.
+  return {opening:clamp(opening*.23,0,.48),protrusion:clamp(protrusion*5,-7,9),
+    excursion:clamp(excursion*6,-7,7),clench:clamp(closure/2),
+    hyoid:[0,clamp(hy*5,-5,8),clamp(hz*5,-5,7)],fixation};
+}
+function transformJaw(p,pose) {
+  const hinge=[0,12,0], y=p[1]-hinge[1],z=p[2]-hinge[2];
+  const c=Math.cos(pose.opening),s=Math.sin(pose.opening);
+  // Condylar forward glide grows with opening; replaceable by a future TMJ law.
+  return [p[0]+pose.excursion,hinge[1]+c*y-s*z,z*c+y*s+pose.protrusion+pose.opening*8];
+}
+const smooth=n=>{const t=clamp(n);return t*t*(3-2*t);};
+const maskWidth=y=>80-44*smooth((-y-60)/50)-19*smooth((y-75)/35)+11*Math.exp(-(((y-18)/20)**2));
+function jawWeight(p) {return smooth((-p[1]-20)/42);}
+function skinJawWeight(p) {
+  // Smooth mandibular attachment transition across perioral tissue. Local
+  // corner bumps in this weight can fold the thin lip-corner triangles.
+  return jawWeight(p);
+}
+function isMandibularOrigin(a) {
+  return ['depressor_anguli_oris','depressor_labii_inferioris','mentalis','mylohyoid','geniohyoid','digastric_anterior'].includes(a.region_id);
+}
+function isMandibularInsertion(a) {return /^(masseter_|temporalis_|medial_pterygoid_|lateral_pterygoid_)/.test(a.region_id);}
+function posedActuator(a,pose) {
+  const origin=isMandibularOrigin(a)?transformJaw(a.origin,pose):a.origin;
+  const insertion=isMandibularInsertion(a)?transformJaw(a.insertion,pose):
+    add(a.insertion,scale(sub(transformJaw(a.insertion,pose),a.insertion),skinJawWeight(a.insertion)));
+  const center=['bulge','mentalis'].includes(a.field)?scale(add(origin,insertion),.5):insertion;
+  return {...a,origin,insertion,center};
+}
+function influence(a,p) {
+  if(a.field==='lid_upper'||a.field==='lid_lower') {
+    const eyeX=a.side==='R'?-32:32,eyeY=34;
+    // Follow the actual elliptical lid boundary of the neutral mask. Taper
+    // outside that margin; a rectangular plateau would collapse adjacent skin.
+    const dx=p[0]*80/maskWidth(p[1])-eyeX;
+    const margin=8*Math.sqrt(Math.max(0,1-(dx/20)**2));
+    return (1-smooth((Math.abs(dx)-18)/10))*
+      (1-smooth((Math.abs(p[1]-eyeY)-margin)/12))*
+      (1-smooth((Math.abs(p[2]-57)-16)/22));
+  }
+  const r2=p.reduce((v,x,i)=>v+((x-a.center[i])/a.radius[i])**2,0);
+  if(r2>=1) return 0;
+  // Compact C2 kernel; no global opposite-side movement.
+  return (1-r2)**3;
+}
+function contraction(a) {return scale(unit(sub(a.origin,a.insertion)),Math.min(7,length(sub(a.origin,a.insertion))*.15));}
+function fieldDelta(a,p) {
+  const w=influence(a,p);if(!w)return [0,0,0];
+  const base=contraction(a),offset=sub(p,a.center);
+  if(a.field==='skeletal'||a.field==='hyoid'||a.field==='none') return [0,0,0];
+  if(a.field==='bulge') {
+    // Isochoric fiber shortening: determinant λ × λ^-1/2 × λ^-1/2 = 1.
+    // Finite tissue envelope makes total skin volume approximate, not exact.
+    const fiber=unit(sub(a.origin,a.insertion)),parallel=scale(fiber,dot(offset,fiber));
+    const perpendicular=sub(offset,parallel),lambda=.82;
+    return scale(add(scale(parallel,lambda-1),scale(perpendicular,1/Math.sqrt(lambda)-1)),w);
+  }
+  if(a.field==='cheek_compress') return scale(add(base,[0,0,-3]),w);
+  if(a.field==='mentalis') return scale(add(base,[0,1.5,4]),w);
+  if(a.field==='lip_ring') {
+    // Each sector acts toward the shared mouth ellipse, not one offset vector.
+    const cx=0,cy=-31;
+    const radial=[(cx-p[0])*.24,(cy-p[1])*.38,3.5];
+    return scale(radial,w);
+  }
+  if(a.field.startsWith('lid_')) {
+    const eyeY=34;
+    if(a.field==='lid_raise') return p[1]>=eyeY?scale([0,6,0],w):[0,0,0];
+    const isUpper=a.field==='lid_upper';
+    if((p[1]>=eyeY)!==isUpper) return [0,0,0];
+    // Retain a thin contact gap at maximum closure so the coarse lid-corner
+    // triangles do not flatten into the seam. A future thickness/contact mesh
+    // can replace this 4% rest-gap clearance.
+    return [0,(eyeY-p[1])*w*.96,0];
+  }
+  if(a.field==='eye_ring') {
+    const cy=34,cx=a.side==='R'?-32:32;
+    return scale([(cx-p[0])*.12,(cy-p[1])*.18,1.8],w);
+  }
+  return scale(base,w);
+}
+function createNeutralMesh() {
+  const vertices=[],triangles=[],lookup=new Map(),nx=40,ny=55;
+  const holes=[{x:0,y:-30,hx:28,hy:4},{x:32,y:34,hx:20,hy:8},{x:-32,y:34,hx:20,hy:8}];
+  function position(x,y) {
+    for(const h of holes) {
+      const dx=x-h.x,dy=y-h.y,m=Math.max(Math.abs(dx/h.hx),Math.abs(dy/h.hy));
+      if(m>0&&m<1.5) {
+        const factor=m/Math.hypot(dx/h.hx,dy/h.hy),blend=1-smooth((m-1)/.5);
+        x=h.x+dx*(1+(factor-1)*blend);y=h.y+dy*(1+(factor-1)*blend);
+      }
+    }
+    const width=maskWidth(y);
+    x=x/80*width;
+    const faceDepth=54-16*smooth((y-65)/45)-22*smooth((-y-75)/35);
+    const z=faceDepth*Math.sqrt(Math.max(.03,1-(x/95)**2))+
+      24*Math.exp(-((x/15)**2)-((y-8)/27)**2)+
+      15*Math.exp(-((x/35)**2)-((y+31)/22)**2)+
+      10*Math.exp(-((x/33)**2)-((y+66)/18)**2);
+    return [x,y,z];
+  }
+  const insideHole=(x,y)=>holes.some(h=>Math.abs(x-h.x)<h.hx&&Math.abs(y-h.y)<h.hy);
+  for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++) {
+    const x=-80+i*4,y=-110+j*4;
+    if(insideHole(x,y))continue;
+    lookup.set(i+','+j,vertices.length);vertices.push(position(x,y));
+  }
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++) {
+    if(insideHole(-78+i*4,-108+j*4))continue;
+    const ids=[[i,j],[i+1,j],[i,j+1],[i+1,j+1]].map(v=>lookup.get(v.join(',')));
+    if(ids.some(v=>v===undefined))continue;
+    const [a,b,c,d]=ids;triangles.push([a,b,d],[a,d,c]);
+  }
+  // Every stored vertex must belong to a triangle (holes cannot leave orphans).
+  const used=new Set(triangles.flat()),map=new Map([...used].sort((a,b)=>a-b).map((v,i)=>[v,i]));
+  const compact=[...map.keys()].map(i=>vertices[i]);
+  const indexAt=target=>compact.reduce((best,p,i)=>length(sub(p,target))<length(sub(compact[best],target))?i:best,0);
+  const landmarks={chin:[0,-70,65],upper_lip:[0,-26,69],lower_lip:[0,-34,70],
+    mouth_L:[28,-30,64],mouth_R:[-28,-30,64],brow_L:[24,50,54],brow_R:[-24,50,54],
+    upper_lid_L:[32,42,54],lower_lid_L:[32,26,56],upper_lid_R:[-32,42,54],lower_lid_R:[-32,26,56],
+    ala_L:[16,2,76],ala_R:[-16,2,76],masseter_L:[69,-30,29],masseter_R:[-69,-30,29],
+    cheek_L:[46,-22,58],cheek_R:[-46,-22,58],submental:[0,-94,31]};
+  return {vertices:compact,triangles:triangles.map(t=>t.map(i=>map.get(i))),
+    landmarks:Object.fromEntries(Object.entries(landmarks).map(([k,p])=>[k,indexAt(p)])),
+    mandible:[[-58,12,0],[-59,-47,19],[-36,-70,48],[0,-73,64],[36,-70,48],[59,-47,19],[58,12,0]],
+    hyoid:[[-17,-98,18],[0,-100,21],[17,-98,18]]};
+}
+function deform(anatomy,mesh,inputs={}) {
+  const q=validatedActivations(anatomy,inputs),pose=solveSkeleton(anatomy,q);
+  const fields=anatomy.actuators.filter(a=>q[a.id]>0).map(a=>posedActuator(a,pose));
+  // Shared mouth-corner force accumulation, saturated once. All local oral
+  // drivers feed the same junction; cheek skin receives the same solved motion.
+  const junctions={L:[0,0,0],R:[0,0,0]};
+  const corners=Object.fromEntries(['L','R'].map(side=>{
+    const corner=side==='L'?[29,-31,63]:[-29,-31,63];
+    return [side,add(corner,scale(sub(transformJaw(corner,pose),corner),skinJawWeight(corner)))];
+  }));
+  for(const a of fields.filter(a=>a.field==='modiolus'))
+    junctions[a.side]=add(junctions[a.side],scale(contraction(a),q[a.id]));
+  // Buccinator and oral sphincter sectors tension the same junction as corner
+  // elevators/depressors. Resolve their local contributions once as well.
+  const couplesToCorner=a=>['lip_ring','cheek_compress'].includes(a.field);
+  for(const a of fields.filter(couplesToCorner))for(const side of ['L','R'])
+    junctions[side]=add(junctions[side],scale(fieldDelta(a,corners[side]),q[a.id]));
+  for(const side of ['L','R']) {const n=length(junctions[side]);if(n>9)junctions[side]=scale(junctions[side],9/n);}
+  const skeletalVertices=[];
+  let vertices=mesh.vertices.map(p=>{
+    const jawMotion=scale(sub(transformJaw(p,pose),p),skinJawWeight(p));
+    let posed=add(p,jawMotion),delta=[0,0,0];
+    skeletalVertices.push(posed);
+    const cornerWeight=side=>influence({center:corners[side],radius:[32,30,28]},posed);
+    for(const a of fields) if(a.field!=='modiolus') {
+      const freeTissue=couplesToCorner(a)?1-Math.max(cornerWeight('L'),cornerWeight('R')):1;
+      delta=add(delta,scale(fieldDelta(a,posed),q[a.id]*freeTissue));
+    }
+    for(const side of ['L','R']) {
+      delta=add(delta,scale(junctions[side],cornerWeight(side)));
+    }
+    const submentalWeight=Math.exp(-((p[0]/32)**2)-((p[1]+96)/20)**2);
+    delta=add(delta,scale(pose.hyoid,submentalWeight*.65));
+    // Bounded composite displacement guards cheap reference tissue against
+    // unrealistic summed shortening; it preserves direction and does not use
+    // expression-specific shapes. Shared junction already has its own bound.
+    const magnitude=length(delta);if(magnitude>13)delta=scale(delta,13/magnitude);
+    return add(posed,delta);
+  });
+  // Backtracking on tissue strain keeps every rest triangle oriented and above
+  // a minimum area. This acts on combined fields, never selects an expression
+  // morph, and never attenuates the rigid mandible. Expose it for debug/QA.
+  const normal=(vs,t)=>cross(sub(vs[t[1]],vs[t[0]]),sub(vs[t[2]],vs[t[0]]));
+  const restNormals=mesh.triangles.map(t=>normal(mesh.vertices,t));
+  const safe=vs=>mesh.triangles.every((t,i)=>{
+    const n=normal(vs,t),rest=restNormals[i];
+    return dot(n,rest)>0&&length(n)>.025*length(rest);
+  });
+  let tissueScale=1;
+  const strainDiagnostics=[];
+  if(!safe(vertices)) {
+    for(const [i,t] of mesh.triangles.entries()) {
+      const n=normal(vertices,t),rest=restNormals[i];
+      if(dot(n,rest)<=0||length(n)<=.025*length(rest)) {
+        strainDiagnostics.push({triangle:t,rest:t.map(i=>mesh.vertices[i]),requested:t.map(i=>vertices[i])});
+        if(strainDiagnostics.length===3)break;
+      }
+    }
+    const deltas=vertices.map((v,i)=>sub(v,skeletalVertices[i]));
+    do {
+      tissueScale*=.5;
+      vertices=skeletalVertices.map((v,i)=>add(v,scale(deltas[i],tissueScale)));
+    } while(!safe(vertices)&&tissueScale>1/4096);
+    if(!safe(vertices)) throw Error('Skeletal pose folds reference surface: '+JSON.stringify(strainDiagnostics[0]));
+  }
+  return {vertices,triangles:mesh.triangles,landmarks:mesh.landmarks,pose,q,fields,junctions,tissueScale,strainDiagnostics,
+    mandible:mesh.mandible.map(p=>transformJaw(p,pose)),hyoid:mesh.hyoid.map(p=>add(p,pose.hyoid))};
+}
+function project(p,yaw=0,pitch=0) {
+  const c=Math.cos(yaw),s=Math.sin(yaw),x=c*p[0]+s*p[2],z=-s*p[0]+c*p[2];
+  return [x,Math.cos(pitch)*p[1]-Math.sin(pitch)*z,Math.sin(pitch)*p[1]+Math.cos(pitch)*z];
+}
+
+// Projection is a view of the actual posed mesh. No expression image/morph data.
+function renderFace(ctx,mesh,face,options={}) {
+  const width=ctx.canvas.width,height=ctx.canvas.height;
+  const yaw=options.yaw||0,pitch=options.pitch||0,zoom=Math.min(width/220,height/260);
+  const screen=p=>{const v=project(p,yaw,pitch);return [width/2+zoom*(v[0]-Math.sin(yaw)*35),height*.48-zoom*v[1],v[2]];};
+  ctx.fillStyle='#17232c';ctx.fillRect(0,0,width,height);
+  ctx.strokeStyle='#22323e';ctx.lineWidth=1;
+  for(let x=width/2%40;x<width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,height);ctx.stroke();}
+  for(let y=height/2%40;y<height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke();}
+  // Fixed eyeballs beneath the eyelid aperture. Surface triangles cover them.
+  for(const side of [-1,1]) {
+    const c=screen([side*34.5,34,51]);ctx.beginPath();
+    ctx.ellipse(c[0],c[1],zoom*24*Math.cos(yaw),zoom*14,0,0,Math.PI*2);
+    ctx.fillStyle='#e7e2d3';ctx.fill();ctx.beginPath();ctx.arc(c[0],c[1],zoom*7,0,Math.PI*2);
+    ctx.fillStyle='#526c66';ctx.fill();ctx.beginPath();ctx.arc(c[0],c[1],zoom*3.5,0,Math.PI*2);ctx.fillStyle='#121b20';ctx.fill();
+  }
+  const mouth=screen([0,-31,56]);ctx.fillStyle='#28151e';ctx.fillRect(mouth[0]-zoom*37,mouth[1]-zoom*12,zoom*74,zoom*55);
+  const points=face.vertices.map(screen),light=unit([-.35,.55,1]);
+  const triangles=face.triangles.map(t=>({t,depth:t.reduce((s,i)=>s+points[i][2],0)/3})).sort((a,b)=>a.depth-b.depth);
+  const selected=options.actuator?posedActuator(options.actuator,face.pose):null;
+  const heatWeights=selected?face.vertices.map(p=>influence(selected,p)):null;
+  for(const {t} of triangles) {
+    const n=unit(cross(sub(face.vertices[t[1]],face.vertices[t[0]]),sub(face.vertices[t[2]],face.vertices[t[0]])));
+    const brightness=.55+.45*Math.max(0,dot(n,light));
+    let color=[205,153,123].map(v=>Math.round(v*brightness));
+    if(selected&&options.debug){const w=t.reduce((s,i)=>s+heatWeights[i],0)/3;color=color.map((v,i)=>Math.round(v*(1-w)+[75,222,189][i]*w));}
+    ctx.beginPath();ctx.moveTo(...points[t[0]].slice(0,2));ctx.lineTo(...points[t[1]].slice(0,2));ctx.lineTo(...points[t[2]].slice(0,2));ctx.closePath();
+    ctx.fillStyle=`rgb(${color})`;ctx.fill();
+    ctx.strokeStyle=options.wireframe?'#314b4b':ctx.fillStyle;ctx.lineWidth=options.wireframe?.45:.65;ctx.stroke();
+  }
+  // Boundary paths include real eye/mouth holes and the continuous mask rim.
+  const edgeCounts=new Map();for(const t of mesh.triangles)for(let k=0;k<3;k++){
+    const edge=[t[k],t[(k+1)%3]].sort((a,b)=>a-b),key=edge.join(',');edgeCounts.set(key,(edgeCounts.get(key)||0)+1);
+  }
+  for(const [key,count] of edgeCounts)if(count===1){
+    const [a,b]=key.split(',').map(Number),p=mesh.vertices[a];
+    ctx.strokeStyle=p[1]>20&&p[1]<46&&Math.abs(p[0])<60?'#59443e':p[1]>-38&&p[1]<-22&&Math.abs(p[0])<35?'#86534d':'#aa7f68';
+    ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(...points[a].slice(0,2));ctx.lineTo(...points[b].slice(0,2));ctx.stroke();
+  }
+  // Brows follow sampled skin, rather than independently animated strokes.
+  const nearest=p=>mesh.vertices.reduce((best,v,i)=>dot(sub(v,p),sub(v,p))<dot(sub(mesh.vertices[best],p),sub(mesh.vertices[best],p))?i:best,0);
+  for(const side of [-1,1]){
+    ctx.beginPath();for(let k=0;k<7;k++){
+      const i=nearest([side*(17+k*5),49+Math.sin(k/6*Math.PI)*4,50]),p=points[i];
+      if(k===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]);
+    }ctx.strokeStyle='#5b4337';ctx.lineWidth=3.4;ctx.stroke();
+  }
+  if(options.debug) {
+    const line=(path,color)=>{ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();path.map(screen).forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();};
+    line(face.mandible,'#ffd275');line(face.hyoid,'#86bafa');
+    for(const [name,i] of Object.entries(mesh.landmarks)){
+      const p=points[i];ctx.fillStyle='#e8f4f1';ctx.beginPath();ctx.arc(p[0],p[1],2.2,0,Math.PI*2);ctx.fill();
+      if(options.labels){ctx.font='10px sans-serif';ctx.fillText(name,p[0]+4,p[1]-3);}
+    }
+    if(selected){line([selected.origin,selected.insertion],'#73ffcf');
+      for(const p of [selected.origin,selected.insertion]){const s=screen(p);ctx.beginPath();ctx.arc(s[0],s[1],4,0,Math.PI*2);ctx.fillStyle='#73ffcf';ctx.fill();}
+    }
+  }
+  ctx.font='12px sans-serif';ctx.fillStyle='#cbd9dd';ctx.fillText('Subject right',10,height-12);ctx.fillText('Subject left',width-86,height-12);
+  return points;
+}
+
+const ledger=readTable(LEDGER_TEXT),controlRows=readTable(CONTROL_TEXT,','),anatomy=compileAnatomy(ledger),mesh=createNeutralMesh();
+const canvas=document.querySelector('#face'),ctx=canvas.getContext('2d'),controls={};
+let direct={},yaw=0,pitch=0,animated=false,phase=0;
+const $=id=>document.getElementById(id);
+for(const a of anatomy.actuators){const opt=document.createElement('option');opt.value=a.id;opt.textContent=a.canonical_name+' · '+(a.side==='U'?'unpaired':a.side==='L'?'left':'right');$('muscle').append(opt);}
+const fixtureButtons=[...Object.keys(expressions),...Object.keys(activationExamples), 'close_from_open'];
+for(const name of fixtureButtons){const b=document.createElement('button');b.textContent=name.replaceAll('_',' ');b.dataset.expression=name;b.onclick=()=>selectFixture(name);$('expressions').append(b);}
+for(const row of controlRows){const label=document.createElement('label');label.textContent=row.id.replaceAll('_',' ');const input=document.createElement('input');input.type='range';input.min=0;input.max=1;input.step=.01;input.value=0;input.dataset.control=row.id;input.oninput=()=>{controls[row.id]=Number(input.value);draw();};label.append(input);$('controls').append(label);}
+const table=document.createElement('table');for(const row of ledger){const tr=document.createElement('tr');for(const value of [row.canonical_name,row.disposition,row.reason]){const td=document.createElement('td');td.textContent=value;tr.append(td);}table.append(tr);}$('ledger').append(table);
+function resetState(){for(const key of Object.keys(controls))delete controls[key];direct={};$('activation').value=0;for(const input of document.querySelectorAll('[data-control]'))input.value=0;}
+function selectFixture(name){animated=false;resetState();if(name==='close_from_open'){Object.assign(controls,{jaw_open:1});Object.assign(direct,activationExamples.clench);}else if(expressions[name])Object.assign(controls,expressions[name]);else Object.assign(direct,activationExamples[name]);for(const input of document.querySelectorAll('[data-control]'))input.value=controls[input.dataset.control]||0;draw();}
+function draw(){
+ const q=controlsToMuscles(anatomy,controlRows,controls),extra=validatedActivations(anatomy,direct);
+ for(const id of Object.keys(q))q[id]=clamp(q[id]+extra[id]);
+ const a=anatomy.byId[$('muscle').value],v=Number($('activation').value)*(animated?(.5-.5*Math.cos(phase)):1);
+ q[a.id]=clamp(q[a.id]+v);if($('bilateral').checked&&a.side!=='U'){const other=a.region_id+'_'+(a.side==='L'?'R':'L');q[other]=clamp(q[other]+v);}
+ const face=deform(anatomy,mesh,q);renderFace(ctx,mesh,face,{yaw,pitch,debug:$('debug').checked,wireframe:$('wire').checked,labels:$('labels').checked,actuator:a});
+ $('level').textContent=v.toFixed(2);
+ $('anatomy').textContent=a.canonical_name+' | '+a.innervation+' | '+a.origin_region+' → '+a.insertion_region+' | '+a.principal_pull;
+ const active=Object.entries(face.q).filter(([,v])=>v>0).map(([id,v])=>id+' '+v.toFixed(2));
+ $('state').textContent='Mandible: opening '+(face.pose.opening*180/Math.PI).toFixed(1)+'° · anterior '+face.pose.protrusion.toFixed(2)+' mm · left '+face.pose.excursion.toFixed(2)+' mm\nHyoid: superior '+face.pose.hyoid[1].toFixed(2)+' mm · anterior '+face.pose.hyoid[2].toFixed(2)+' mm\nTissue strain scale '+face.tissueScale+'\n'+(active.join('\n')||'Neutral activation');
+ // Observable test boundary: live values produced by exactly this demo path.
+ window.beautyState={face,mesh,controls:{...controls},yaw,pitch};
+}
+for(const id of ['activation','bilateral','muscle','debug','wire','labels'])$(id).oninput=draw;
+$('reset').onclick=()=>{animated=false;resetState();draw();};$('animate').onclick=()=>{animated=!animated;if(Number($('activation').value)===0)$('activation').value=1;draw();};
+$('front').onclick=()=>{yaw=0;pitch=0;draw();};let dragging=null;
+canvas.onpointerdown=e=>{dragging=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);};canvas.onpointerup=()=>dragging=null;
+canvas.onpointermove=e=>{if(!dragging)return;yaw=clamp(yaw+(e.clientX-dragging[0])*.007,-1.2,1.2);pitch=clamp(pitch+(e.clientY-dragging[1])*.006,-.55,.55);dragging=[e.clientX,e.clientY];draw();};
+function tick(){if(animated){phase+=.035;draw();}requestAnimationFrame(tick);}draw();tick();
+</script></html>

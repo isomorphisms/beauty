@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beauty · Muscle → moving face</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#111c24;color:#e1eaed;font:15px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:20px}h1{font-size:25px;margin:0 0 6px}p{line-height:1.5;color:#adbdc6;margin:6px 0 18px}.layout{display:grid;grid-template-columns:minmax(300px,1fr) 360px;gap:20px}canvas{width:100%;background:#17232c;border:1px solid #31434f;border-radius:8px;touch-action:none}.panel{background:#1b2a35;border:1px solid #31434f;border-radius:8px;padding:14px}h2{font-size:16px;margin:16px 0 8px}label{display:block;margin:10px 0}input[type=range],select{width:100%}select,button{background:#293e4e;color:#e9f1f3;border:1px solid #4c6373;border-radius:4px;padding:8px}button{cursor:pointer}input{accent-color:#76dbc0}.buttons{display:flex;flex-wrap:wrap;gap:6px}.buttons button{font-size:13px}pre{font:12px ui-monospace,monospace;white-space:pre-wrap;color:#bce1d6;max-height:220px;overflow:auto}.small{font-size:12px}details{margin-top:12px}.view{display:flex;gap:14px}.view label{font-size:13px}#controls{max-height:250px;overflow:auto;padding:4px}#ledger{max-height:260px;overflow:auto;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #3c505d;padding:6px;text-align:left}@media(max-width:780px){.layout{grid-template-columns:1fr}main{padding:12px}.panel{width:100%}}
+</style>
+<main><h1>Beauty · Muscle → moving face</h1><p>Activate anatomy, combine expressions, and inspect the mandible and hyoid. Drag the face to turn the view. This is a procedural reference mask.</p>
+<div class="layout"><div><canvas id="face" width="720" height="760" aria-label="Deformed facial mesh"></canvas><div class="view"><label><input id="debug" type="checkbox" checked> Anatomy</label><label><input id="wire" type="checkbox"> Mesh</label><label><input id="labels" type="checkbox"> Landmarks</label><button id="front">Front view</button></div><pre id="state"></pre></div>
+<div class="panel"><div class="buttons"><button id="reset">Neutral / reset</button><button id="animate">Animate on/off</button></div><h2>Expressions and jaw motion</h2><div id="expressions" class="buttons"></div>
+<h2>Individual muscle</h2><select id="muscle" aria-label="Muscle region"></select><label>Activation <output id="level">0.00</output><input id="activation" type="range" min="0" max="1" step="0.01" value="0"></label><label><input id="bilateral" type="checkbox"> Recruit both sides</label><div id="anatomy" class="small"></div>
+<details><summary>All 36 expression controls</summary><div id="controls"></div></details>
+<details><summary>Canonical anatomy ledger</summary><p class="small">All audited entries have a disposition. “Excluded” means geometry is absent at this fidelity, not anatomically irrelevant.</p><div id="ledger"></div></details>
+<p class="small">Approximate attachments and static muscle fields. No measured human fit, full TMJ dynamics, or swallowing model.</p></div></div></main>
+<script type="module">
+/* MODEL */
+/* RENDER */
+const ledger=readTable(LEDGER_TEXT),controlRows=readTable(CONTROL_TEXT,','),anatomy=compileAnatomy(ledger),mesh=createNeutralMesh();
+const canvas=document.querySelector('#face'),ctx=canvas.getContext('2d'),controls={};
+let direct={},yaw=0,pitch=0,animated=false,phase=0;
+const $=id=>document.getElementById(id);
+for(const a of anatomy.actuators){const opt=document.createElement('option');opt.value=a.id;opt.textContent=a.canonical_name+' · '+(a.side==='U'?'unpaired':a.side==='L'?'left':'right');$('muscle').append(opt);}
+const fixtureButtons=[...Object.keys(expressions),...Object.keys(activationExamples), 'close_from_open'];
+for(const name of fixtureButtons){const b=document.createElement('button');b.textContent=name.replaceAll('_',' ');b.dataset.expression=name;b.onclick=()=>selectFixture(name);$('expressions').append(b);}
+for(const row of controlRows){const label=document.createElement('label');label.textContent=row.id.replaceAll('_',' ');const input=document.createElement('input');input.type='range';input.min=0;input.max=1;input.step=.01;input.value=0;input.dataset.control=row.id;input.oninput=()=>{controls[row.id]=Number(input.value);draw();};label.append(input);$('controls').append(label);}
+const table=document.createElement('table');for(const row of ledger){const tr=document.createElement('tr');for(const value of [row.canonical_name,row.disposition,row.reason]){const td=document.createElement('td');td.textContent=value;tr.append(td);}table.append(tr);}$('ledger').append(table);
+function resetState(){for(const key of Object.keys(controls))delete controls[key];direct={};$('activation').value=0;for(const input of document.querySelectorAll('[data-control]'))input.value=0;}
+function selectFixture(name){animated=false;resetState();if(name==='close_from_open'){Object.assign(controls,{jaw_open:1});Object.assign(direct,activationExamples.clench);}else if(expressions[name])Object.assign(controls,expressions[name]);else Object.assign(direct,activationExamples[name]);for(const input of document.querySelectorAll('[data-control]'))input.value=controls[input.dataset.control]||0;draw();}
+function draw(){
+ const q=controlsToMuscles(anatomy,controlRows,controls),extra=validatedActivations(anatomy,direct);
+ for(const id of Object.keys(q))q[id]=clamp(q[id]+extra[id]);
+ const a=anatomy.byId[$('muscle').value],v=Number($('activation').value)*(animated?(.5-.5*Math.cos(phase)):1);
+ q[a.id]=clamp(q[a.id]+v);if($('bilateral').checked&&a.side!=='U'){const other=a.region_id+'_'+(a.side==='L'?'R':'L');q[other]=clamp(q[other]+v);}
+ const face=deform(anatomy,mesh,q);renderFace(ctx,mesh,face,{yaw,pitch,debug:$('debug').checked,wireframe:$('wire').checked,labels:$('labels').checked,actuator:a});
+ $('level').textContent=v.toFixed(2);
+ $('anatomy').textContent=a.canonical_name+' | '+a.innervation+' | '+a.origin_region+' → '+a.insertion_region+' | '+a.principal_pull;
+ const active=Object.entries(face.q).filter(([,v])=>v>0).map(([id,v])=>id+' '+v.toFixed(2));
+ $('state').textContent='Mandible: opening '+(face.pose.opening*180/Math.PI).toFixed(1)+'° · anterior '+face.pose.protrusion.toFixed(2)+' mm · left '+face.pose.excursion.toFixed(2)+' mm\nHyoid: superior '+face.pose.hyoid[1].toFixed(2)+' mm · anterior '+face.pose.hyoid[2].toFixed(2)+' mm\nTissue strain scale '+face.tissueScale+'\n'+(active.join('\n')||'Neutral activation');
+ // Observable test boundary: live values produced by exactly this demo path.
+ window.beautyState={face,mesh,controls:{...controls},yaw,pitch};
+}
+for(const id of ['activation','bilateral','muscle','debug','wire','labels'])$(id).oninput=draw;
+$('reset').onclick=()=>{animated=false;resetState();draw();};$('animate').onclick=()=>{animated=!animated;if(Number($('activation').value)===0)$('activation').value=1;draw();};
+$('front').onclick=()=>{yaw=0;pitch=0;draw();};let dragging=null;
+canvas.onpointerdown=e=>{dragging=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);};canvas.onpointerup=()=>dragging=null;
+canvas.onpointermove=e=>{if(!dragging)return;yaw=clamp(yaw+(e.clientX-dragging[0])*.007,-1.2,1.2);pitch=clamp(pitch+(e.clientY-dragging[1])*.006,-.55,.55);dragging=[e.clientX,e.clientY];draw();};
+function tick(){if(animated){phase+=.035;draw();}requestAnimationFrame(tick);}draw();tick();
+</script></html>
