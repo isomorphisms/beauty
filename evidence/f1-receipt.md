@@ -9,13 +9,9 @@ claim a validated medical simulator, measured human fit, native build or APK.
 - Refreshed main: `284043fb43f1113a7be1164623be5678a8c50a85`.
 - Actual implementation starting head, `facial-mask`:
   `b510c4f22b8751537b65b042dca1ac86b0c2a648`.
-- Implemented and structurally verified source:
-  `a7f115473d69c8c362ea7e1636ebffb216452d50`.
-- Evidence-only receipt commit: `5d1879e6f666e1d53033de21d642f160c1d14468`.
-- Duplicate-copy cleanup commit: `e022b882bc6c3fd2cdf5ccc244d7b0fda67c5c6a`.
-  Neither changes anatomy, runtime or demo code. Subsequent receipt edits only
-  correct the changed-file manifest and record these exact identities; the live
-  final branch head is available from the associated PR/commit history.
+- Published, materializable verified source: `28371e9ea92ad31d1a3633e9f7c839b9d8fd15a1`.
+- Its complete Git tree: `d170bfc52704e419ba3ef44b23d9cc1411277848`, byte-for-byte identical to the verified local source/evidence tree. Publication used the connected GitHub API because this host's Git push lacked credentials. Local-only commit identifiers are not publication prerequisites.
+- The following receipt-only commit records that published identity; it changes no anatomy, runtime, controls, demonstration or rendered fixture. The final branch head is recorded in the PR and completion response.
 - Canonical ledger SHA-256:
   `8841ed0342c6fae5849300ec841aad8950970678f9a3e79cd14e50e782fd6f8b`.
 - Self-contained demo SHA-256:
