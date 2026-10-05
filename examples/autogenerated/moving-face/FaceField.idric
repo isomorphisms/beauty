@@ -1,0 +1,15 @@
+module FaceField
+
+-- Exact millimetre acceptance slice. No claim of compiled execution.
+record FacePoint where
+  constructor FacePosition
+  lateral_mm : ±Number
+  superior_mm : ±Number
+  anterior_mm : ±Number
+
+move_tissue_toward_attachment : FacePoint → FacePoint → FacePoint
+move_tissue_toward_attachment (FacePosition tissue_x tissue_y tissue_z)
+                              (FacePosition anchor_x anchor_y anchor_z) =
+  FacePosition ((tissue_x + anchor_x) `div` 2)
+               ((tissue_y + anchor_y) `div` 2)
+               ((tissue_z + anchor_z) `div` 2)
